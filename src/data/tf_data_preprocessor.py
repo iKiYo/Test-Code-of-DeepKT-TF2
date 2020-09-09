@@ -76,6 +76,8 @@ def prepare_batched_tf_data(preprocessed_csv_path, batch_size=25):
               { "outputs" : a}
           )
       )
+  
+  return dict_dataset
 
 
 def split_dataset(dataset, total_size, test_fraction, val_fraction=None):
