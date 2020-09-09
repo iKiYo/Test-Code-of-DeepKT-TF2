@@ -1,7 +1,8 @@
 dkt_tf2
 ==============================
 
-Deep Knowledge Tracing in Tensorflow2
+Test code of Deep Knowledge Tracing in Tensorflow2.3
+
 
 Project Organization
 ------------
@@ -55,3 +56,5 @@ Project Organization
 --------
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
+
+# Test-Code-of-DeepKT-TF2
