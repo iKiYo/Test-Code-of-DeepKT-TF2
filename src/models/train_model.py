@@ -1,9 +1,15 @@
+import os
+import sys
+
 import tensorflow as tf
 from tensorflow import keras
-# from tensorflow.keras import layers
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from data.tf_data_preprocessor import prepare_batched_tf_data
+from data.preprocessor import preprocess_csv
 
 # data path
-csv_data_path=""
+csv_data_path="https://drive.google.com/file/d/1GdaXMFbvGRIBg8CzGnTKJAw8x_p5o-_J/view?usp=sharing"
 # data parameters
 num_students=28118
 number_skills=265
@@ -21,7 +27,7 @@ num_batches = num_students // batch_size
 print(tf.test.is_gpu_available())
 
 # prepare tf data
-batched_tf_data = prepare_batched_tf_data(preprocessed_csv_path, batch_size=25)
+batched_tf_data = prepare_batched_tf_data(preprocessed_csv_path=csv_data_path, batch_size=25)
 
 # split the data
 train_dataset, test_dataset, val_dataset = split_dataset(batched_tf_data, total_size=num_batches, test_fraction=0.1, val_fraction=0.2)
