@@ -10,7 +10,8 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 # print(tf.test.is_gpu_available())
-preprocessed_csv_path ="/content/drive/My Drive/master thesis/Datasets/assistment_dataset/assist12_4cols_noNaNskill.csv" 
+# preprocessed_csv_path ="/content/drive/My Drive/master thesis/Datasets/assistment_dataset/assist12_4cols_noNaNskill.csv" 
+preprocessed_csv_path = "../../data/processed/assist12_4cols_noNaNskill.csv"
 batch_size = 25
 
 

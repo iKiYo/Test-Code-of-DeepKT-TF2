@@ -5,14 +5,19 @@ import tensorflow as tf
 from tensorflow import keras
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from data.tf_data_preprocessor import prepare_batched_tf_data
+import deepkt_tf2
+from data.tf_data_preprocessor import prepare_batched_tf_data, split_dataset
 from data.preprocessor import preprocess_csv
 
+
 # data path
-csv_data_path="https://drive.google.com/file/d/1GdaXMFbvGRIBg8CzGnTKJAw8x_p5o-_J/view?usp=sharing"
+csv_data_path = "../../data/processed/assist12_4cols_noNaNskill.csv"
+# csv_data_path ="/content/drive/My Drive/master thesis/Datasets/assistment_dataset/assist12_4cols_noNaNskill.csv"
+
+
 # data parameters
 num_students=28118
-number_skills=265
+num_skills=265
 max_sequence_length=2089
 
 # model parmaeters
@@ -33,7 +38,7 @@ batched_tf_data = prepare_batched_tf_data(preprocessed_csv_path=csv_data_path, b
 train_dataset, test_dataset, val_dataset = split_dataset(batched_tf_data, total_size=num_batches, test_fraction=0.1, val_fraction=0.2)
 
 # build model
-model = DKTModel(num_students, num_skills, max_sequence_length, hidden_units, dropout_rate)
+model = deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length, embed_dim, hidden_units, dropout_rate)
 
 # configure model
 # set Reduction.SUM for distributed traning
