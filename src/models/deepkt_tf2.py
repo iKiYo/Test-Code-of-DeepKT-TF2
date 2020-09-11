@@ -6,8 +6,7 @@ from tensorflow.keras import layers
 class DKTModel(tf.keras.Model):
 
 
-  def __init__(self, num_students, num_skills, max_sequence_length, hidden_units=100, dropout_rate=0.2):   
-    # definition of input tensors and layers
+  def __init__(self, num_students, num_skills, max_sequence_length, embed_dim=200, hidden_units=100, dropout_rate=0.2):   
     x = tf.keras.Input(shape=(max_sequence_length, num_skills*2), name='x')
     q = tf.keras.Input(shape=(max_sequence_length, num_skills), name='q')
 
