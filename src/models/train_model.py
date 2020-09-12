@@ -29,8 +29,7 @@ batch_size=25
 
 num_batches = num_students // batch_size
 
-print(tf.test.is_gpu_available())
-
+print(tf.config.list_physical_devices('GPU'))
 # prepare tf data
 batched_tf_data = prepare_batched_tf_data(preprocessed_csv_path=csv_data_path, batch_size=25)
 
