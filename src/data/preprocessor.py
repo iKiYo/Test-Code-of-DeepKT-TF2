@@ -58,7 +58,7 @@ def make_train_test_csv(data_folder_path, csv_dataname, test_ratio):
 
   Input:  path of full dataset CSV file in the  format below
                  <format>students id, skill id, correct, x(skill_id*2+1)
-  Output: None, directory store train/test csv file in the same folder of input
+  Output: None, directly store train/test csv file in the same folder of input
   """
   # Read and use preprocessed csv file
   df = pd.read_csv(os.path.join(data_folder_path, csv_dataname))

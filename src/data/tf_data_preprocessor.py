@@ -2,7 +2,7 @@
 modified code from
 https://github.com/lccasagrande/Deep-Knowledge-Tracing
 """
-
+import os 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -13,6 +13,40 @@ from tensorflow.keras import layers
 # preprocessed_csv_path ="/content/drive/My Drive/master thesis/Datasets/assistment_dataset/assist12_4cols_noNaNskill.csv" 
 preprocessed_csv_path = "../../data/processed/assist12_4cols_noNaNskill.csv"
 batch_size = 25
+
+
+def make_sequence_data(data_folder_path, processed_csv_dataname):
+  """Make sequential(groupby user id) data and return it in Series
+
+  Input:  path of Train dataset CSV file in the format below
+                 <format>students id, skill id, correct, x(skill_id*2+1)
+  Output: sequential data in pandas Series
+ 
+  """
+  # read and use preprocessed csv file
+  df = pd.read_csv(os.path.join(data_folder_path, processed_csv_dataname))
+  print(F"{processed_csv_dataname}  \n length:  {len(df)}")
+
+  # Get N, M, T
+  num_students = df['user_id'].nunique()
+  num_skills = df['skill_id'].nunique()
+  max_sequence_length=  df['user_id'].value_counts().max()
+  print(F"number of students:{num_students}  number of skills:{num_skills}  max attempt :{max_sequence_length}")
+
+  seq = df.groupby('user_id').apply(
+      lambda r: (
+          r['x'].values[:-1], 
+          r['skill_id'].values[1:],
+          r['correct'].values[1:],
+      )
+  )
+
+  assert num_students, len(seq)
+  # Todo: tuple converted to str, when read from csv
+  # write out csv  file to storage
+  # seq.to_csv(os.path.join(data_folder_path,"seq_"+processed_csv_dataname), index=False)
+
+  return seq
 
 
 def prepare_batched_tf_data(preprocessed_csv_path, batch_size=25):
