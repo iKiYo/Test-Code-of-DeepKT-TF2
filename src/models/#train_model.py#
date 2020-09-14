@@ -41,6 +41,50 @@ def train_model(train_dataset, val_dataset,
   
   history = model.fit(train_dataset.prefetch(5),  epochs=25,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
 
+
+def do_one_time_cv_experiment(data_folder_path, train_csv_dataname, cv_id_array_name,  set_number):#, *hparams, *num_hparam_search):
+  # data parameters
+  num_skills=265
+  max_sequence_length=2089
+
+  # model parmaeters
+  batch_size=20
+  hidden_units=200 
+  dropout_rate=0.2
+  embed_dim=200
+  learning_rate=0.005
+
+  print(tf.config.list_physical_devices('GPU'))
+
+  # prepare seq
+  all_train_seq = make_sequence_data(data_folder_path, train_csv_dataname)
+
+  # Get CV id array
+  cv_id_array = np.load(os.path.join(data_folder_path, cv_id_array_name), allow_pickle=True)
+  print(cv_id_array[set_number-1][0])
+
+  train_index  = cv_id_array[set_number-1][0]
+  val_index = cv_id_array[set_number-1][1]
+  num_students = len(train_index)
+  train_seq, val_seq = all_train_seq.iloc[train_index], all_train_seq.iloc[val_index]
+
+  # prepare batch (padding, one_hot)
+  train_tf_data = prepare_batched_tf_data(train_seq, batch_size, num_skills, max_sequence_length)
+  val_tf_data = prepare_batched_tf_data(val_seq, batch_size, num_skills, max_sequence_length)
+  num_batches = num_students // batch_size
+  print(F"num_batches for training : {num_batches}")
+
+  # KEEP: for debug 
+  print(train_tf_data.take(1).element_spec)
+  # sample = list(train_tf_data.take(1).as_numpy_iterator())
+  # for i in range(3):
+  #   print(sample[0][i])
+  #   print(np.array(sample[0][i]).shape)
+
+
+  # start training
+  train_model(train_tf_data, val_tf_data, num_students, num_skills, max_sequence_length,
+                            batch_size, learning_rate, embed_dim, hidden_units, dropout_rate, num_batches, 1)
   
 """
 # data path

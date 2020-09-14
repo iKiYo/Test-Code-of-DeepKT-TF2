@@ -78,25 +78,9 @@ def prepare_cv_id_array(data_folder_path, train_csv_dataname, num_fold):#, *hpar
   print(F"ID arrays cv_id_array.npy for CrossValidation saved to {index_array_path}")
 
 
-def prepare_batched_tf_data(preprocessed_csv_path, batch_size=25):
+def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_sequence_length):
 
-  df = pd.read_csv(preprocessed_csv_path)
-
-  # Get N, M, T
-  # Todo: unique is not extensible
-  num_students, num_skills, _, _ = df.nunique()
-  max_sequence_length=  df['user_id'].value_counts().max()
-  print(F"number of students:{num_students}\n number of skills:{num_skills}\n max of attempts sequence:{max_sequence_length}")
-
-  seq = df.groupby('user_id').apply(
-      lambda r: (
-          r['x'].values[:-1], 
-          r['skill_id'].values[1:],
-          r['correct'].values[1:],
-      )
-  )
-
-  assert num_students, len(seq)
+  seq = preprocessed_csv_seq
 
   # Transform into tf.data format
   dataset = tf.data.Dataset.from_generator(
@@ -104,8 +88,9 @@ def prepare_batched_tf_data(preprocessed_csv_path, batch_size=25):
       output_types=(tf.int32, tf.int32, tf.int32)
   )
 
+  # todo: no need? because it is shuffled  when split
   # Shuffle before padding and making batches
-  dataset.shuffle(buffer_size=num_students)
+  # dataset.shuffle(buffer_size=num_students)
 
   # One hot enconding
   # Encode binary sign of attmpts(from M to 2M)
