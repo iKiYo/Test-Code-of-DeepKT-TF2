@@ -19,19 +19,12 @@ def get_args():
       Dictionary of arguments.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--job-dir',
-        type=str,
-        required=True,
+    parser.add_argument('--job-dir', type=str, required=True,
         help='local or GCS location for writing checkpoints and exporting '
              'models')
-    parser.add_argument(
-        '--num-epochs',
-        type=int,
-        default=20,
+    parser.add_argument('--num-epochs', type=int, default=20,
         help='number of times to go through the data, default=20')
-    parser.add_argument(
-        '--batch-size',
+    parser.add_argument('--batch-size',
         default=30,
         type=int,
         help='number of records to read during each training step, default=128')
@@ -87,8 +80,6 @@ def get_args():
         '--verbosity',
         choices=['DEBUG', 'ERROR', 'FATAL', 'INFO', 'WARN'],
         default='INFO')
-    # args_list = ['--job-dir', './', '--full_csv_dataname', './','--train_csv_dataname','./', '--cv_id_array_name','./']
-    # args, _ = parser.parse_known_args(args_list)
     args, _ = parser.parse_known_args()
     return args
 
@@ -133,6 +124,8 @@ def do_one_time_cv_experiment(args):
 
   # start training
   train_model(train_tf_data, val_tf_data, args, num_students, num_skills, max_sequence_length, num_batches, 1)
+  print("finished experiment")
+
 
 
 if __name__ == '__main__':

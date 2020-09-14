@@ -35,5 +35,4 @@ def train_model(train_dataset, val_dataset, hparams, num_students, num_skills, m
   tboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logs,
                                                  histogram_freq = 1, update_freq='batch')
   
-  history = model.fit(train_dataset.take(5).prefetch(5),  epochs=1,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
-  print("finished training")
+  history = model.fit(train_dataset.prefetch(5),  epochs=25,  validation_data=val_dataset.prefetch, callbacks=[tboard_callback])
