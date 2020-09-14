@@ -25,15 +25,19 @@ def train_model(train_dataset, val_dataset, hparams, num_students, num_skills, m
   print(model.summary())  
 
   # Start trainning
-  print("start training")
+  print("-- start training --")
+  print("hparams.hidden_units, hparams.dropout_rate, hparams.embed_dim, hparams.learning_rate,hparams.batch_size")
   print(hparams.hidden_units, hparams.dropout_rate, hparams.embed_dim, hparams.learning_rate,hparams.batch_size)
+  print("num_students, num_skills, max_sequence_length, num_batches")
   print(num_students, num_skills, max_sequence_length, num_batches)
 
   # Create a TensorBoard callback
-  logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+  model_name = model.__class__.__name__
+  logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S") +"-"+  model_name
 
   tboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logs,
                                                  histogram_freq = 1, update_freq='batch')
-  
-  history = model.fit(train_dataset.take(5).prefetch(5),  epochs=1,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
-  print("finished training")
+  # for debug  
+  # history = model.fit(train_dataset.take(5).prefetch(5),  epochs=hparams.num-epochs,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
+  history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
+  print("-- finished training --")

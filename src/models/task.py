@@ -19,12 +19,19 @@ def get_args():
       Dictionary of arguments.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--job-dir', type=str, required=True,
+    parser.add_argument(
+        '--job-dir',
+        type=str,
+        required=True,
         help='local or GCS location for writing checkpoints and exporting '
              'models')
-    parser.add_argument('--num-epochs', type=int, default=20,
+    parser.add_argument(
+        '--num-epochs',
+        type=int,
+        default=20,
         help='number of times to go through the data, default=20')
-    parser.add_argument('--batch-size',
+    parser.add_argument(
+        '--batch-size',
         default=30,
         type=int,
         help='number of records to read during each training step, default=128')
@@ -80,21 +87,24 @@ def get_args():
         '--verbosity',
         choices=['DEBUG', 'ERROR', 'FATAL', 'INFO', 'WARN'],
         default='INFO')
+    # args_list = ['--job-dir', './', '--full_csv_dataname', './','--train_csv_dataname','./', '--cv_id_array_name','./']
+    # args, _ = parser.parse_known_args(args_list)
     args, _ = parser.parse_known_args()
     return args
 
 
 def do_one_time_cv_experiment(args):
 
+  print("Check GPUs")
   print(tf.config.list_physical_devices('GPU'))
 
   # Get N, M, T from a full preprocessed csv file
-  print("Get N, M, T from a full preprocessed csv file")
+  print("-- Get N, M, T from a full preprocessed csv file -- ")
   df = pd.read_csv(os.path.join(args.data_folder_path, args.full_csv_dataname))
   num_students = df['user_id'].nunique()
   num_skills = df['skill_id'].nunique()
   max_sequence_length=  df['user_id'].value_counts().max()
-  print(F"number of students:{num_students}  number of skills:{num_skills}  max attempt :{max_sequence_length}")
+  print(F"Full dataset info : number of students:{num_students}  number of skills:{num_skills}  max attempt :{max_sequence_length}")
 
 
   # prepare seq
@@ -102,6 +112,7 @@ def do_one_time_cv_experiment(args):
 
   # Get CV id array
   cv_id_array = np.load(os.path.join(args.data_folder_path, args.cv_id_array_name), allow_pickle=True)
+  print("--Check CV index --")
   print(cv_id_array[args.set_number-1][0])
 
   train_index  = cv_id_array[args.set_number-1][0]
@@ -116,6 +127,7 @@ def do_one_time_cv_experiment(args):
   print(F"num_batches for training : {num_batches}")
 
   # KEEP: for debug 
+  print("-- sample tf.data instance --")
   print(train_tf_data.take(1).element_spec)
   # sample = list(train_tf_data.take(1).as_numpy_iterator())
   # for i in range(3):
@@ -125,8 +137,6 @@ def do_one_time_cv_experiment(args):
   # start training
   train_model(train_tf_data, val_tf_data, args, num_students, num_skills, max_sequence_length, num_batches, 1)
   print("finished experiment")
-
-
 
 if __name__ == '__main__':
     args = get_args()
