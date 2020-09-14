@@ -8,11 +8,16 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-
+from sklearn.model_selection import KFold
 # print(tf.test.is_gpu_available())
 # preprocessed_csv_path ="/content/drive/My Drive/master thesis/Datasets/assistment_dataset/assist12_4cols_noNaNskill.csv" 
 preprocessed_csv_path = "../../data/processed/assist12_4cols_noNaNskill.csv"
 batch_size = 25
+
+
+def get_kfold_id_generator(array, num_fold):
+  kf = KFold(n_splits = num_fold, shuffle = True, random_state = 2)
+  return  kf.split(array)
 
 
 def make_sequence_data(data_folder_path, processed_csv_dataname):
@@ -25,7 +30,8 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
   """
   # read and use preprocessed csv file
   df = pd.read_csv(os.path.join(data_folder_path, processed_csv_dataname))
-  print(F"{processed_csv_dataname}  \n length:  {len(df)}")
+  print(F"process :\n {processed_csv_dataname}  \nlength:  {len(df)}")
+
 
   # Get N, M, T
   num_students = df['user_id'].nunique()
@@ -47,6 +53,29 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
   # seq.to_csv(os.path.join(data_folder_path,"seq_"+processed_csv_dataname), index=False)
 
   return seq
+
+
+def prepare_cv_id_array(data_folder_path, train_csv_dataname, num_fold):#, *hparams, *num_hparam_search):
+  """ Make index array for X th fold cross validation splitting train/validation dataset
+  Input: Train data in CSV
+  Output: None, directly store the array in  .npy file to the same folder of the given train dataset
+  """
+  # Prepare seq series data
+  all_train_seq = make_sequence_data(data_folder_path, train_csv_dataname)
+
+  # Get generator 
+  kfold_index_gen = get_kfold_id_generator(all_train_seq, num_fold)
+
+  # Make ID array from generator and save it
+  index_array= np.array([])
+  for train_index, test_index in kfold_index_gen:
+    # print("TRAIN:", train_index, "TEST:", test_index)
+    index_array = np.append(index_array, [train_index ,test_index])
+  index_array = index_array.reshape((num_fold,2))
+
+  index_array_path = os.path.join(data_folder_path, 'cv_id_array_'+train_csv_dataname+'.npy')
+  np.save(index_array_path, index_array)
+  print(F"ID arrays cv_id_array.npy for CrossValidation saved to {index_array_path}")
 
 
 def prepare_batched_tf_data(preprocessed_csv_path, batch_size=25):
