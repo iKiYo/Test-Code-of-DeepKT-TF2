@@ -1,0 +1,17 @@
+trainingInput:
+  hyperparameters:
+    goal: MAXIMIZE
+    maxTrials: 20
+    maxParallelTrials: 1
+    hyperparameterMetricTag: batch_auc
+    params:
+    - parameterName: batch-size
+      type: INTEGER
+      minValue: 16
+      maxValue: 128
+      scaleType: UNIT_LINEAR_SCALE
+    - parameterName: learning-rate
+      type: DOUBLE
+      minValue: 0.0001
+      maxValue: 0.01
+      scaleType: UNIT_LOG_SCALE

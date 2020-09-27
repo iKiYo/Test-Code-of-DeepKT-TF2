@@ -6,7 +6,7 @@ import pandas as pd
 import tensorflow as tf
 
 from .train_model_func import train_model
-from data.tf_data_preprocessor import prepare_batched_tf_data, split_dataset, make_sequence_data
+from data.tf_data_preprocessor import prepare_batched_tf_data, split_dataset, make_sequence_data, get_kfold_id_generator
 
 def get_args():
     """Argument parser.
@@ -33,7 +33,7 @@ def get_args():
         help='number of records to read during each training step, default=128')
     parser.add_argument(
         '--learning-rate',
-        default=.01,
+        default=.001,
         type=float,
         help='learning rate for gradient descent, default=.01')
     parser.add_argument(
@@ -107,12 +107,22 @@ def do_one_time_cv_experiment(args):
   all_train_seq = make_sequence_data(args.data_folder_path, args.train_csv_dataname)
 
   # Get CV id array
-  cv_id_array = np.load(os.path.join(args.data_folder_path, args.cv_id_array_name), allow_pickle=True)
-  print("--Check CV index --")
-  print(cv_id_array[args.set_number-1][0])
+  # use .npy file(need anotehr package to install from cloud storage)
+  # cv_id_array = np.load(os.path.join(args.data_folder_path, args.cv_id_array_name), allow_pickle=True)
+  # print("--Check CV index --")
+  # print(cv_id_array[args.set_number-1][0])
 
-  train_index  = cv_id_array[args.set_number-1][0]
-  val_index = cv_id_array[args.set_number-1][1]
+  # train_index  = cv_id_array[args.set_number-1][0]
+  # val_index = cv_id_array[args.set_number-1][1]
+
+  # Get generator 
+  num_fold=5
+  kfold_index_gen = get_kfold_id_generator(all_train_seq, num_fold)
+
+  train_index, val_index = next(kfold_index_gen)
+  print("TRAIN:", train_index, "TEST:", val_index)
+
+
   num_students = len(train_index)
   train_seq, val_seq = all_train_seq.iloc[train_index], all_train_seq.iloc[val_index]
 
