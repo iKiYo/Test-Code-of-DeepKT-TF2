@@ -3,7 +3,7 @@ trainingInput:
     goal: MAXIMIZE
     maxTrials: 20
     maxParallelTrials: 1
-    hyperparameterMetricTag: batch_auc
+    hyperparameterMetricTag: epoch_auc
     params:
     - parameterName: batch-size
       type: INTEGER

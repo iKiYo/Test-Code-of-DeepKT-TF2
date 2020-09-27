@@ -1,7 +1,8 @@
 from setuptools import find_packages
 from setuptools import setup
 
-REQUIRED_PACKAGES = ['tensorflow>=2.3']
+REQUIRED_PACKAGES = ['tensorflow>=2.3',
+'cloudml-hypertune']
 
 
 setup(

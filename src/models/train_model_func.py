@@ -4,6 +4,8 @@ from datetime import datetime
 import tensorflow as tf
 from tensorflow import keras
 
+import hypertune
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import models.deepkt_tf2
 from data.tf_data_preprocessor import prepare_batched_tf_data, split_dataset
@@ -32,18 +34,26 @@ def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students,
 
   # Create a TensorBoard callback
   model_name = model.__class__.__name__
-  logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S") +"-"+  model_name
 
+  # logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S") +"-"+  model_name
+  logs = os.path.join(outfile_path, "keras_tensorboard")
   tboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logs,
-                                                 histogram_freq = 1, update_freq='batch')
+                                                 histogram_freq = 1)#, update_freq='batch')
   # for debug  
-  # history = model.fit(train_dataset.take(5).prefetch(5),  epochs=hparams.num-epochs,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
+  # history = model.fit(train_dataset.take(1),  epochs=hparams.num_epochs,  validation_data=val_dataset.take(1), callbacks=[tboard_callback])
   history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
   print("-- finished training --")
 
   # model.save('dkt_model') 
-  export_path = os.path.join(outfile_path, model_name)
+  export_path = os.path.join(outfile_path, "keras_export")
   model.save(export_path)
   print('Model exported to: {}'.format(export_path))
+
+    # Uses hypertune to report metrics for hyperparameter tuning.
+  hpt = hypertune.HyperTune()
+  hpt.report_hyperparameter_tuning_metric(
+      hyperparameter_metric_tag='epoch_auc',
+      metric_value=history.history['val_auc'][-1],
+      global_step=None)
 
 
