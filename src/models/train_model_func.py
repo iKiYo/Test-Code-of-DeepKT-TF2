@@ -10,7 +10,7 @@ from data.tf_data_preprocessor import prepare_batched_tf_data, split_dataset
 from data.preprocessor import preprocess_csv
 
 
-def train_model(train_dataset, val_dataset, hparams, num_students, num_skills, max_sequence_length, num_batches, *num_hparam_search):
+def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students, num_skills, max_sequence_length, num_batches, *num_hparam_search):
   # build model
   model = models.deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length,
                               hparams.embed_dim, hparams.hidden_units, hparams.dropout_rate)
@@ -40,3 +40,10 @@ def train_model(train_dataset, val_dataset, hparams, num_students, num_skills, m
   # history = model.fit(train_dataset.take(5).prefetch(5),  epochs=hparams.num-epochs,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
   history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
   print("-- finished training --")
+
+  # model.save('dkt_model') 
+  export_path = os.path.join(outfile_path, model_name)
+  model.save(export_path)
+  print('Model exported to: {}'.format(export_path))
+
+

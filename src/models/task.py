@@ -69,12 +69,6 @@ def get_args():
         required=True,
         help='file name of Train dataset, default=None')
     parser.add_argument(
-        '--cv_id_array_name',
-        default="cv_id_array_train_assist12_4cols_noNaNskill",
-        type=str,
-        required=True,
-        help='path to cross validation index array .npy file, default=None')   
-    parser.add_argument(
         '--set_number',
         default=1,
         type=int,
@@ -91,8 +85,8 @@ def get_args():
 
 def do_one_time_cv_experiment(args):
 
-  print("Check GPUs")
-  print(tf.config.list_physical_devices('GPU'))
+  print("output directory: ", args.job_dir)
+  print("Check GPUs", tf.config.list_physical_devices('GPU'))
 
   # Get N, M, T from a full preprocessed csv file
   print("-- Get N, M, T from a full preprocessed csv file -- ")
@@ -105,15 +99,6 @@ def do_one_time_cv_experiment(args):
 
   # prepare seq
   all_train_seq = make_sequence_data(args.data_folder_path, args.train_csv_dataname)
-
-  # Get CV id array
-  # use .npy file(need anotehr package to install from cloud storage)
-  # cv_id_array = np.load(os.path.join(args.data_folder_path, args.cv_id_array_name), allow_pickle=True)
-  # print("--Check CV index --")
-  # print(cv_id_array[args.set_number-1][0])
-
-  # train_index  = cv_id_array[args.set_number-1][0]
-  # val_index = cv_id_array[args.set_number-1][1]
 
   # Get generator 
   num_fold=5
@@ -141,7 +126,7 @@ def do_one_time_cv_experiment(args):
   #   print(np.array(sample[0][i]).shape)
 
   # start training
-  train_model(train_tf_data, val_tf_data, args, num_students, num_skills, max_sequence_length, num_batches, 1)
+  train_model(args.job_dir, train_tf_data, val_tf_data, args, num_students, num_skills, max_sequence_length, num_batches, 1)
   print("finished experiment")
 
 if __name__ == '__main__':
