@@ -21,17 +21,15 @@ def get_kfold_id_generator(array, num_fold):
 
 
 def make_sequence_data(data_folder_path, processed_csv_dataname):
-  """Make sequential(groupby user id) data and return it in Series
+  """Make sequential data with temporal features (groupby user id) data and return it in Series
 
   Input:  path of Train dataset CSV file in the format below
-                 <format>students id, skill id, correct, x(skill_id*2+1)
+                 <format>students id, skill id, correct, x(skill_id*2+1) 
   Output: sequential data in pandas Series
- 
+                <format> x, c_t(skill without the last attempt, seq_delta, repeated_delta, attempt_count),
+                                    q, c_t+1, a
   """
-  # read and use preprocessed csv file
   df = pd.read_csv(os.path.join(data_folder_path, processed_csv_dataname))
-  print(F"process :\n {processed_csv_dataname}  \nlength:  {len(df)}")
-
 
   # Get N, M, T
   num_students = df['user_id'].nunique()
@@ -42,8 +40,19 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
   seq = df.groupby('user_id').apply(
       lambda r: (
           r['x'].values[:-1], 
-          r['skill_id'].values[1:],
-          r['correct'].values[1:],
+
+          r['skill_id'].values[:-1], # c_t
+          r['seq_delta_t'].values[:-1],
+          r['repeated_delta_t'].values[:-1],
+          r['attempt_per_skill'].values[:-1],
+
+          r['skill_id'].values[1:], # q
+
+          r['seq_delta_t'].values[1:], # c_t+1
+          r['repeated_delta_t'].values[1:],
+          r['attempt_per_skill'].values[1:],
+
+          r['correct'].values[1:], # a
       )
   )
 
@@ -53,7 +62,7 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
   # seq.to_csv(os.path.join(data_folder_path,"seq_"+processed_csv_dataname), index=False)
 
   return seq
-  
+
 
 def prepare_cv_id_array(data_folder_path, train_csv_dataname, num_fold):#, *hparams, *num_hparam_search):
   """ Make index array for X th fold cross validation splitting train/validation dataset
@@ -85,48 +94,67 @@ def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_se
   # Transform into tf.data format
   dataset = tf.data.Dataset.from_generator(
       generator=lambda: seq,
-      output_types=(tf.int32, tf.int32, tf.int32)
+      # output_types=(tf.int32, tf.int32, tf.int32, tf.int32, tf.int32, tf.int32, tf.int32, tf.int32, tf.int32, tf.int32)
+      output_types=(tf.int32,
+                    tf.int32, # skill
+                    tf.float32, tf.float32, tf.float32, # c_t
+                    tf.int32,
+                    tf.float32, tf.float32, tf.float32, # c_t+1
+                    tf.int32)
   )
-
-  # todo: no need? because it is shuffled  when split
-  # Shuffle before padding and making batches
-  # dataset.shuffle(buffer_size=num_students)
 
   # One hot enconding
   # Encode binary sign of attmpts(from M to 2M)
   transformed_dataset  = dataset.map(
-      lambda feat, skill, label: (
-          tf.one_hot(feat, depth=num_skills*2), # x
-          tf.one_hot(skill, depth=num_skills, axis=-1), # q
-          tf.expand_dims(label, -1) # a 
+      lambda feat, skill_t, seq_d_t, rep_d_t, count_t, skill_t_1, seq_d_t_1, rep_d_t_1, count_t_1, label: (
+          tf.one_hot(feat, depth=num_skills*2, dtype=tf.float32), # x  userT * 2M
+          tf.one_hot(skill_t, depth=num_skills, axis=-1, dtype=tf.int32), # q
+          tf.concat(
+          [tf.math.multiply(tf.one_hot(skill_t, depth=num_skills, axis=-1, dtype=tf.float32), 
+                           tf.repeat(tf.expand_dims(seq_d_t, axis=1), num_skills, axis=1)), # sequence_delta
+          tf.math.multiply(tf.one_hot(skill_t, depth=num_skills, axis=-1, dtype=tf.float32), 
+                           tf.repeat(tf.expand_dims(rep_d_t, axis=1), num_skills, axis=1)), # repeated_delta
+          tf.math.multiply(tf.one_hot(skill_t, depth=num_skills, axis=-1, dtype=tf.float32), 
+                           tf.repeat(tf.expand_dims(count_t, axis=1), num_skills, axis=1)) # counts of attempt
+          ] ,1), # c_t
+          tf.concat(
+          [tf.math.multiply(tf.one_hot(skill_t_1, depth=num_skills, axis=-1, dtype=tf.float32), 
+                           tf.repeat(tf.expand_dims(seq_d_t_1, axis=1), num_skills, axis=1)), # sequence_delta
+          tf.math.multiply(tf.one_hot(skill_t_1, depth=num_skills, axis=-1, dtype=tf.float32), 
+                           tf.repeat(tf.expand_dims(rep_d_t_1, axis=1), num_skills, axis=1)), # repeated_delta
+          tf.math.multiply(tf.one_hot(skill_t_1, depth=num_skills, axis=-1, dtype=tf.float32), 
+                           tf.repeat(tf.expand_dims(count_t_1, axis=1), num_skills, axis=1)) # counts of attempt
+          ] ,1), # c_t+1
+          tf.expand_dims(label, -1), # a 
       )
   )
-
-  # KEEP: for debug
-  # padded_sample = list(transformed_dataset.take(3).as_numpy_iterator())
-  # for i in range(3):
-  #   print(padded_sample[0][i].T)
-  #   print(np.array(padded_sample[0][i].T).shape)
 
   # Padding for LSTM
   # FIX: padding value should be Args and default -1
   padded_dataset = transformed_dataset.padded_batch(
           batch_size=batch_size,
-          padding_values=(0.,0.,-1),
-          padded_shapes=([max_sequence_length, 2*num_skills], [max_sequence_length, num_skills], [max_sequence_length, 1]),
+          padding_values=(.0 ,0 ,.0, .0, -1),# -1),
+          padded_shapes=([max_sequence_length, 2*num_skills], 
+                         [max_sequence_length, num_skills], 
+                         [max_sequence_length, 3*num_skills],
+                         [max_sequence_length, 3*num_skills],
+                         [max_sequence_length, 1],
+                         ),
           drop_remainder=True
       )
-
+  
   # Dict format dataset to feed built-in function such as model.fit
   dict_dataset = padded_dataset.map(
-          lambda x, delta_q, a : (
+          lambda x, delta_q, c_t, c_t_1, a : (
               {"x" : x,
-                "q" : delta_q},
+                "q" : delta_q,
+               "c_t" : c_t,
+               "c_t_1" : c_t_1,
+               },
               { "outputs" : a}
           )
       )
-  
-  return dict_dataset
+  return dict_dataset  
 
 
 def split_dataset(dataset, total_size, test_fraction, val_fraction=None):
