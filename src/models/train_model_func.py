@@ -35,25 +35,38 @@ def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students,
   # Create a TensorBoard callback
   model_name = model.__class__.__name__
 
+
+  early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_auc', patience=2)
+
+  # final_epoch
+  #   def on_epoch_end(self, epoch, logs=None):
+  #       keys = list(logs.keys())
+  #       print("End epoch {} of training; got log keys: {}".format(epoch, keys))
+
+
   # logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S") +"-"+  model_name
   logs = os.path.join(outfile_path, "keras_tensorboard")
   tboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logs,
                                                  histogram_freq = 1)#, update_freq='batch')
   # for debug  
-  # history = model.fit(train_dataset.take(1),  epochs=hparams.num_epochs,  validation_data=val_dataset.take(1), callbacks=[tboard_callback])
-  history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
+  history = model.fit(train_dataset.take(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.take(3), callbacks=[tboard_callback, early_stop_callback])
+  # history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
   print("-- finished training --")
+
+   # Uses hypertune to report metrics for hyperparameter tuning.
+  hpt = hypertune.HyperTune()
+  hpt.report_hyperparameter_tuning_metric(
+      hyperparameter_metric_tag='val_auc',
+      metric_value=max(history.history['val_auc']),
+      global_step=len(history.history['val_auc']))
+  print("training reuslt has been sent.")
+  # print(len(history.history['val_auc']), max(history.history['val_auc']))
 
   # model.save('dkt_model') 
   export_path = os.path.join(outfile_path, "keras_export")
   model.save(export_path)
   print('Model exported to: {}'.format(export_path))
 
-    # Uses hypertune to report metrics for hyperparameter tuning.
-  hpt = hypertune.HyperTune()
-  hpt.report_hyperparameter_tuning_metric(
-      hyperparameter_metric_tag='epoch_auc',
-      metric_value=history.history['val_auc'][-1],
-      global_step=None)
+ 
 
 
