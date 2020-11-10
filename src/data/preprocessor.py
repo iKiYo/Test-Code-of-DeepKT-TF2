@@ -12,14 +12,16 @@ data_file_path=data_folder_path + data_file_name
 output_path = data_folder_path + prepared_data_name
 
   
-def preprocess_csv(csv_file_path=data_file_path, out_path=output_path):
+def preprocess_csv(csv_file_path=data_file_path, out_path=output_path, drop_na_skill=True):
   # Load Assist2012 dataset, use "skill id"
   # Todo: read as int32 or 64
   df = pd.read_csv(csv_file_path, usecols=['user_id', 'skill_id', 'correct', 'end_time'])
 
-  # Drop NaN skill ids 
-  df = df.dropna(subset = ['skill_id'])
-  #df = df.fillna(value={'skill_id': 999}) # Or fill NaN skill
+  # Drop NaN skill ids
+  if drop_na_skill:
+    df = df.dropna(subset = ['skill_id'])
+  else:
+    df = df.fillna(value={'skill_id': 999}) # Or fill NaN skill
 
   # Binarize correct values
   df = df[df["correct"].isin([0, 1])]
