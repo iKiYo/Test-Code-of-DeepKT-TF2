@@ -36,7 +36,7 @@ def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students,
   model_name = model.__class__.__name__
 
 
-  early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_auc', patience=2)
+  early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_auc', patience=5, mode='max')
 
   # final_epoch
   #   def on_epoch_end(self, epoch, logs=None):
@@ -68,5 +68,3 @@ def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students,
   print('Model exported to: {}'.format(export_path))
 
  
-
-
