@@ -49,8 +49,8 @@ def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students,
   tboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logs,
                                                  histogram_freq = 1)#, update_freq='batch')
   # for debug  
-  history = model.fit(train_dataset.take(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.take(3), callbacks=[tboard_callback, early_stop_callback])
-  # history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
+  # history = model.fit(train_dataset.take(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.take(3), callbacks=[tboard_callback, early_stop_callback])
+  history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
   print("-- finished training --")
 
    # Uses hypertune to report metrics for hyperparameter tuning.
