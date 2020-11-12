@@ -69,7 +69,12 @@ def get_args():
         required=True,
         help='file name of Train dataset, default=None')
     parser.add_argument(
-        '--set_number',
+        '--cv_num_folds',
+        default=5,
+        type=int,
+        help='number of cross-validation folds, default=5')
+    parser.add_argument(
+        '--cv_set_number',
         default=1,
         type=int,
         help='cross validation dataset number, default=1')
@@ -101,10 +106,11 @@ def do_one_time_cv_experiment(args):
   all_train_seq = make_sequence_data(args.data_folder_path, args.train_csv_dataname)
 
   # Get generator 
-  num_fold=5
+  num_fold=args.cv_num_folds
   kfold_index_gen = get_kfold_id_generator(all_train_seq, num_fold)
-
-  train_index, val_index = next(kfold_index_gen)
+  for i in range(args.cv_set_number):
+    train_index, val_index = next(kfold_index_gen)
+  print(F"--Validation_set_number:{args.cv_set_number}/{args.cv_num_folds}")
   print("TRAIN:", train_index, "TEST:", val_index)
 
 
