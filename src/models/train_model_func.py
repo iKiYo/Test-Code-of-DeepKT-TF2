@@ -12,7 +12,7 @@ from data.tf_data_preprocessor import prepare_batched_tf_data, split_dataset
 from data.preprocessor import preprocess_csv
 
 
-def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students, num_skills, max_sequence_length, num_batches, *num_hparam_search):
+def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students, num_skills, max_sequence_length, num_batches, num_hparam_search):
   # build model
   model = models.deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length,
                               hparams.embed_dim, hparams.hidden_units, hparams.dropout_rate)
@@ -36,7 +36,7 @@ def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students,
   model_name = model.__class__.__name__
 
 
-  early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_auc', patience=5, mode='max')
+  early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_auc', min_delta=0.01, patience=3, mode='max')
 
   # final_epoch
   #   def on_epoch_end(self, epoch, logs=None):
@@ -50,7 +50,7 @@ def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students,
                                                  histogram_freq = 1)#, update_freq='batch')
   # for debug  
   # history = model.fit(train_dataset.take(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.take(3), callbacks=[tboard_callback, early_stop_callback])
-  history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.prefetch(5), callbacks=[tboard_callback])
+  history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,  validation_data=val_dataset.prefetch(5), steps_per_epoch=num_batches//10,  validation_steps =num_batches/num_hparam_search//10, callbacks=[tboard_callback])
   print("-- finished training --")
 
    # Uses hypertune to report metrics for hyperparameter tuning.

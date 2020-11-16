@@ -132,7 +132,7 @@ def do_one_time_cv_experiment(args):
   #   print(np.array(sample[0][i]).shape)
 
   # start training
-  train_model(args.job_dir, train_tf_data, val_tf_data, args, num_students, num_skills, max_sequence_length, num_batches, 1)
+  train_model(args.job_dir, train_tf_data, val_tf_data, args, num_students, num_skills, max_sequence_length, num_batches, num_fold)
   print("finished experiment")
 
 if __name__ == '__main__':
