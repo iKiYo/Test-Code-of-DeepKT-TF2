@@ -38,11 +38,6 @@ def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students,
 
   early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_auc', min_delta=0.01, patience=3, mode='max')
 
-  # final_epoch
-  #   def on_epoch_end(self, epoch, logs=None):
-  #       keys = list(logs.keys())
-  #       print("End epoch {} of training; got log keys: {}".format(epoch, keys))
-
 
   # logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S") +"-"+  model_name
   logs = os.path.join(outfile_path, "keras_tensorboard")
@@ -59,7 +54,7 @@ def train_model(outfile_path, train_dataset, val_dataset, hparams, num_students,
       hyperparameter_metric_tag='val_auc',
       metric_value=max(history.history['val_auc']),
       global_step=len(history.history['val_auc']))
-  print("training reuslt has been sent.")
+  print("training result has been sent.")
   # print(len(history.history['val_auc']), max(history.history['val_auc']))
 
   # model.save('dkt_model') 
