@@ -35,8 +35,12 @@ def train_model(outfile_path, model, train_dataset, val_dataset, hparams,
 
   # Create a TensorBoard callback
   model_name = model.__class__.__name__
+  if num_hparam_search == 0:
+    monitor_name = 'val_auc'
+  else:
+    monitor_name = 'val_auc_'+str(num_hparam_search)
 
-  early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_auc', min_delta=0.01, patience=3, 
+  early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor=monitor_name, min_delta=0.01, patience=3, 
                                                                                                                     mode='max')
 
   # logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S") +"-"+  model_name

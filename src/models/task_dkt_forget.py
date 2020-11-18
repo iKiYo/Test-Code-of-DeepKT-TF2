@@ -66,11 +66,11 @@ def get_args():
         type=str,
         help='file name of Full dataset, default=None')
     parser.add_argument(
-        '--fulldata_stats_txt_name',
-        default="assist12_8cols_log2_noNaNskill.csv",
+        '--fulldata_stats_json_name',
+        default="assist12_8cols_log2_noNaNskill.json",
         type=str,
         required=True,
-        help='txt file of Full data statistic, default=None')
+        help='json file of Full data statistic, default=None')
     parser.add_argument(
         '--train_csv_dataname',
         default="train_assist12_8cols_log2_noNaNskill.csv",
@@ -103,11 +103,11 @@ def do_one_time_cv_experiment(args):
   print("Check GPUs", tf.config.list_physical_devices('GPU'))
 
   # Get N, M, T from a txt statstic file
-  with open(os.path.join(args.data_folder_path, args.fulldata_stats_txt_name)) as infile:
-      data_stats_dict = json.loads(infile.read())
-  num_students = data_stats_dict['number of students']
-  num_skills = data_stats_dict['number of skills']
-  max_sequence_length = data_stats_dict['max attempt']
+  data_stats_dict = pd.read_json(os.path.join(args.data_folder_path, args.fulldata_stats_json_name),
+                                                                    orient='columns')
+  num_students = data_stats_dict['number of students'][0]
+  num_skills = data_stats_dict['number of skills'][0]
+  max_sequence_length = data_stats_dict['max attempt'][0]
   print(F"Full dataset info : number of students:{num_students}  number of skills:{num_skills}  max attempt :{max_sequence_length}")
 
 
