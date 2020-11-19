@@ -20,7 +20,7 @@ class DKTforgetModel(tf.keras.Model):
                                                       kernel_initializer=tf.keras.initializers.RandomNormal(seed=77),
                                                       input_shape=(None, max_sequence_length, num_skills*3))
     c_concat = layers.Concatenate()
-    mask = layers.Masking(mask_value=0.0, input_shape=(max_sequence_length, embed_dim+num_skills*3))
+    mask = layers.Masking(mask_value=0.0, input_shape=(max_sequence_length, embed_dim*2))
     
     # mask = layers.Masking(mask_value=0, input_shape=(max_sequence_length, embed_dim))
     lstm =  layers.LSTM(hidden_units, return_sequences=True)
