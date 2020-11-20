@@ -78,6 +78,11 @@ def get_args():
         required=True,
         help='file name of Train dataset, default=None')
     parser.add_argument(
+        '--test_csv_dataname',
+        default=None,
+        type=str,
+        help='file name of Test dataset, default=None')
+    parser.add_argument(
         '--cv_num_folds',
         default=5,
         type=int,
@@ -97,10 +102,7 @@ def get_args():
     return args
 
 
-def do_one_time_cv_experiment(args):
-
-  print("output directory: ", args.job_dir)
-  print("Check GPUs", tf.config.list_physical_devices('GPU'))
+def get_full_data_stats(args):
 
   # Get N, M, T from a txt statstic file
   data_stats_dict = pd.read_json(os.path.join(args.data_folder_path, args.fulldata_stats_json_name),
@@ -109,16 +111,20 @@ def do_one_time_cv_experiment(args):
   num_skills = data_stats_dict['number of skills'][0]
   max_sequence_length = data_stats_dict['max attempt'][0]
   print(F"Full dataset info : number of students:{num_students}  number of skills:{num_skills}  max attempt :{max_sequence_length}")
+  return num_students, num_skills, max_sequence_length
 
-
+def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_length):
+  print(args)
   # prepare seq
   all_train_seq = make_sequence_data(args.data_folder_path, args.train_csv_dataname)
 
   # Get generator 
   num_fold=args.cv_num_folds
+  kfold_index_gen = get_kfold_id_generator(all_train_seq, num_fold)
+
+  # start trainings
   scores = []
   steps = []
-  kfold_index_gen = get_kfold_id_generator(all_train_seq, num_fold)
 
   for i in range(num_fold):
     train_index, val_index = next(kfold_index_gen)
@@ -134,11 +140,10 @@ def do_one_time_cv_experiment(args):
     num_batches = num_students // args.batch_size
     print(F"num_batches for training : {num_batches}")
 
-
     # build model
     model = models.deepkt_forget_tf2.DKTforgetModel(num_students, num_skills, max_sequence_length,
                               args.embed_dim, args.hidden_units, args.dropout_rate)
-  
+
     # configure model
     # set Reduction.SUM for distributed traning
     model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
@@ -155,10 +160,10 @@ def do_one_time_cv_experiment(args):
     #   print(np.array(sample[0][i]).shape)
       print(model.summary()) 
 
-    # start training
+
     max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
-                                                                                     num_students, num_skills, max_sequence_length,
-                                                                                     num_batches, i)
+                                                                                      num_students, num_skills, max_sequence_length,
+                                                                                      num_batches, i)
     scores.append(max_score)
     steps.append(global_step)
     print("-- finished one fold --")
@@ -171,9 +176,62 @@ def do_one_time_cv_experiment(args):
       global_step=max(steps)
       )
   print("training result has been sent.")
- 
+  
   print("finished experiment")
+
+
+def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
+
+  train_seq = make_sequence_data(args.data_folder_path, args.train_csv_dataname)
+  val_seq = make_sequence_data(args.data_folder_path, args.test_csv_dataname)
+
+  # prepare batch (padding, one_hot)
+  train_tf_data = prepare_batched_tf_data(train_seq, args.batch_size, num_skills, max_sequence_length)
+  val_tf_data = prepare_batched_tf_data(val_seq, args.batch_size, num_skills, max_sequence_length)
+  num_batches = num_students // args.batch_size
+  print(F"num_batches for training : {num_batches}")
+
+  # build model
+  model = models.deepkt_forget_tf2.DKTforgetModel(num_students, num_skills, max_sequence_length,
+                            args.embed_dim, args.hidden_units, args.dropout_rate)
+
+  # configure model
+  # set Reduction.SUM for distributed traning
+  model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
+              optimizer=tf.optimizers.Adam(learning_rate=args.learning_rate),
+              metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
+
+  # KEEP: for debug 
+  print("-- sample tf.data instance --")
+  print(train_tf_data.take(1).element_spec)
+  # sample = list(train_tf_data.take(1).as_numpy_iterator())
+  # for i in range(3):
+  #   print(sample[0][i])
+  #   print(np.array(sample[0][i]).shape)
+  print(model.summary()) 
+
+  # start training
+  max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
+                                                                                    num_students, num_skills, max_sequence_length,
+                                                                                    num_batches, 0)
+
+  #  Uses hypertune to report metrics for hyperparameter tuning.
+  hpt = hypertune.HyperTune()
+  hpt.report_hyperparameter_tuning_metric(
+      hyperparameter_metric_tag='val_auc',
+      metric_value=max_score,
+      global_step=global_step
+      )
+  print("training result has been sent.") 
+  print("finished experiment")
+
 
 if __name__ == '__main__':
     args = get_args()
-    do_one_time_cv_experiment(args)
+    num_students, num_skills, max_sequence_length = get_full_data_stats(args)
+    print("output directory: ", args.job_dir)
+    print("Check GPUs", tf.config.list_physical_devices('GPU'))
+    if args.test_csv_dataname is None:
+      do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_length)
+    else:
+      do_normal_experiment(args, num_students, num_skills, max_sequence_length)
