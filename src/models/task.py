@@ -1,10 +1,14 @@
 import argparse
 import os
+import json
+
+import hypertune
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+import models.deepkt_tf2
 from .train_model_func import train_model
 from data.tf_data_preprocessor import prepare_batched_tf_data, split_dataset, make_sequence_data, get_kfold_id_generator
 
@@ -38,14 +42,14 @@ def get_args():
         help='learning rate for gradient descent, default=.01')
     parser.add_argument(
         '--hidden_units',
-        default=200,
+        default=100,
         type=int,
-        help='number of hidden units in LSTM cell, default=200')
+        help='number of hidden units in LSTM cell, default=100')
     parser.add_argument(
         '--embed_dim',
-        default=200,
+        default=100,
         type=int,
-        help='dimension of embedding in the first layer, default=200')
+        help='dimension of embedding in the first layer, default=100')
     parser.add_argument(
         '--dropout_rate',
         default=0.2,
@@ -58,16 +62,26 @@ def get_args():
         help='path of the dataset folder, default="../../data/processed"')
     parser.add_argument(
         '--full_csv_dataname',
-        default="assist12_4cols_noNaNskill.csv",
+        default="assist12_8cols_log2_noNaNskill.csv",
         type=str,
-        required=True,
         help='file name of Full dataset, default=None')
     parser.add_argument(
+        '--fulldata_stats_json_name',
+        default="assist12_8cols_log2_noNaNskill.json",
+        type=str,
+        required=True,
+        help='json file of Full data statistic, default=None')
+    parser.add_argument(
         '--train_csv_dataname',
-        default="train_assist12_4cols_noNaNskill.csv",
+        default="train_assist12_8cols_log2_noNaNskill.csv",
         type=str,
         required=True,
         help='file name of Train dataset, default=None')
+    parser.add_argument(
+        '--test_csv_dataname',
+        default=None,
+        type=str,
+        help='file name of Test dataset, default=None')
     parser.add_argument(
         '--cv_num_folds',
         default=5,
@@ -88,40 +102,104 @@ def get_args():
     return args
 
 
-def do_one_time_cv_experiment(args):
+def get_full_data_stats(args):
 
-  print("output directory: ", args.job_dir)
-  print("Check GPUs", tf.config.list_physical_devices('GPU'))
-
-  # Get N, M, T from a full preprocessed csv file
-  print("-- Get N, M, T from a full preprocessed csv file -- ")
-  df = pd.read_csv(os.path.join(args.data_folder_path, args.full_csv_dataname))
-  num_students = df['user_id'].nunique()
-  num_skills = df['skill_id'].nunique()
-  max_sequence_length=  df['user_id'].value_counts().max()
+  # Get N, M, T from a txt statstic file
+  data_stats_dict = pd.read_json(os.path.join(args.data_folder_path, args.fulldata_stats_json_name),
+                                                                    orient='columns')
+  num_students = data_stats_dict['number of students'][0]
+  num_skills = data_stats_dict['number of skills'][0]
+  max_sequence_length = data_stats_dict['max attempt'][0]
   print(F"Full dataset info : number of students:{num_students}  number of skills:{num_skills}  max attempt :{max_sequence_length}")
+  return num_students, num_skills, max_sequence_length
 
-
+def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_length):
+  print(args)
   # prepare seq
   all_train_seq = make_sequence_data(args.data_folder_path, args.train_csv_dataname)
 
   # Get generator 
   num_fold=args.cv_num_folds
   kfold_index_gen = get_kfold_id_generator(all_train_seq, num_fold)
-  for i in range(args.cv_set_number):
+
+  # start trainings
+  scores = []
+  steps = []
+
+  for i in range(num_fold):
     train_index, val_index = next(kfold_index_gen)
-  print(F"--Validation_set_number:{args.cv_set_number}/{args.cv_num_folds}")
-  print("TRAIN:", train_index, "TEST:", val_index)
+    print(F"--Validation_set_number:{i+1}/{args.cv_num_folds}")
+    print("TRAIN:", train_index, "TEST:", val_index)
+
+    num_students = len(train_index)
+    train_seq, val_seq = all_train_seq.iloc[train_index], all_train_seq.iloc[val_index]
+
+    # prepare batch (padding, one_hot)
+    train_tf_data = prepare_batched_tf_data(train_seq, args.batch_size, num_skills, max_sequence_length)
+    val_tf_data = prepare_batched_tf_data(val_seq, args.batch_size, num_skills, max_sequence_length)
+    num_batches = num_students // args.batch_size
+    print(F"num_batches for training : {num_batches}")
+
+    # build model
+    model = models.deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length,
+                              args.embed_dim, args.hidden_units, args.dropout_rate)
+
+    # configure model
+    # set Reduction.SUM for distributed traning
+    model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
+                optimizer=tf.optimizers.SGD(learning_rate=args.learning_rate),
+                metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
+
+    # KEEP: for debug 
+    if i ==0:
+      print("-- sample tf.data instance --")
+      print(train_tf_data.take(1).element_spec)
+    # sample = list(train_tf_data.take(1).as_numpy_iterator())
+    # for i in range(3):
+    #   print(sample[0][i])
+    #   print(np.array(sample[0][i]).shape)
+      print(model.summary()) 
 
 
-  num_students = len(train_index)
-  train_seq, val_seq = all_train_seq.iloc[train_index], all_train_seq.iloc[val_index]
+    max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
+                                                                                      num_students, num_skills, max_sequence_length,
+                                                                                      num_batches, i)
+    scores.append(max_score)
+    steps.append(global_step)
+    print("-- finished one fold --")
+
+  #  Uses hypertune to report metrics for hyperparameter tuning.
+  hpt = hypertune.HyperTune()
+  hpt.report_hyperparameter_tuning_metric(
+      hyperparameter_metric_tag='val_auc',
+      metric_value=sum(scores)/args.cv_num_folds,
+      global_step=max(steps)
+      )
+  print("training result has been sent.")
+  
+  print("finished experiment")
+
+
+def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
+
+  train_seq = make_sequence_data(args.data_folder_path, args.train_csv_dataname)
+  val_seq = make_sequence_data(args.data_folder_path, args.test_csv_dataname)
 
   # prepare batch (padding, one_hot)
   train_tf_data = prepare_batched_tf_data(train_seq, args.batch_size, num_skills, max_sequence_length)
   val_tf_data = prepare_batched_tf_data(val_seq, args.batch_size, num_skills, max_sequence_length)
   num_batches = num_students // args.batch_size
   print(F"num_batches for training : {num_batches}")
+
+  # build model
+  model = models.deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length,
+                            args.embed_dim, args.hidden_units, args.dropout_rate)
+
+  # configure model
+  # set Reduction.SUM for distributed traning
+  model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
+              optimizer=tf.optimizers.SGD(learning_rate=args.learning_rate),
+              metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
 
   # KEEP: for debug 
   print("-- sample tf.data instance --")
@@ -130,11 +208,30 @@ def do_one_time_cv_experiment(args):
   # for i in range(3):
   #   print(sample[0][i])
   #   print(np.array(sample[0][i]).shape)
+  print(model.summary()) 
 
   # start training
-  train_model(args.job_dir, train_tf_data, val_tf_data, args, num_students, num_skills, max_sequence_length, num_batches, num_fold)
+  max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
+                                                                                    num_students, num_skills, max_sequence_length,
+                                                                                    num_batches, 0)
+
+  #  Uses hypertune to report metrics for hyperparameter tuning.
+  hpt = hypertune.HyperTune()
+  hpt.report_hyperparameter_tuning_metric(
+      hyperparameter_metric_tag='val_auc',
+      metric_value=max_score,
+      global_step=global_step
+      )
+  print("training result has been sent.") 
   print("finished experiment")
+
 
 if __name__ == '__main__':
     args = get_args()
-    do_one_time_cv_experiment(args)
+    num_students, num_skills, max_sequence_length = get_full_data_stats(args)
+    print("output directory: ", args.job_dir)
+    print("Check GPUs", tf.config.list_physical_devices('GPU'))
+    if args.test_csv_dataname is None:
+      do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_length)
+    else:
+      do_normal_experiment(args, num_students, num_skills, max_sequence_length)
