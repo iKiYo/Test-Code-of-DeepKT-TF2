@@ -1,0 +1,22 @@
+ trainingInput:
+  scaleTier: CUSTOM
+   # Configure a master worker with 1 P100 GPUs
+  masterType: n1-standard-8
+  masterConfig:
+    acceleratorConfig:
+      count: 1
+      type: NVIDIA_TESLA_P100
+  hyperparameters:
+    goal: MAXIMIZE
+    maxTrials: 4
+    maxParallelTrials: 1
+    hyperparameterMetricTag: val_auc
+    params:
+    - parameterName: learning-rate
+      type: DOUBLE
+      minValue: 0.0001
+      maxValue: 0.01
+      scaleType: UNIT_LOG_SCALE
+
+
+      

@@ -29,7 +29,7 @@ def train_model(outfile_path, model, train_dataset, val_dataset, hparams,
   else:
     monitor_name = 'val_auc_'+str(num_hparam_search)
 
-  early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor=monitor_name, min_delta=0.001, patience=7, 
+  early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor=monitor_name, min_delta=0.001, patience=3, 
                                                                                                                     mode='max')
 
   # logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S") +"-"+  model_name
@@ -37,11 +37,11 @@ def train_model(outfile_path, model, train_dataset, val_dataset, hparams,
   tboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logs,
                                                  histogram_freq = 1)#, update_freq='batch')
   # for debug  
-  history = model.fit(train_dataset.take(1),  epochs=hparams.num_epochs,  validation_data=val_dataset.take(1), callbacks=[tboard_callback, early_stop_callback])
-  # history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,
-  #                                        validation_data=val_dataset.prefetch(5), steps_per_epoch=num_batches//10,
-  #                                       #  validation_steps =num_batches//10,
-  #                                        callbacks=[tboard_callback,early_stop_callback])
+  # history = model.fit(train_dataset.take(1),  epochs=hparams.num_epochs,  validation_data=val_dataset.take(1), callbacks=[tboard_callback, early_stop_callback])
+  history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,
+                                         validation_data=val_dataset.prefetch(5), steps_per_epoch=num_batches//5,
+                                        #  validation_steps =num_batches//10,
+                                         callbacks=[tboard_callback,early_stop_callback])
   print("-- finished training --")
 
   export_path = os.path.join(outfile_path, "keras_export")
