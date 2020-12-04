@@ -151,16 +151,17 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     print(F"num_batches for training : {num_batches}")
 
      # LR test setting
-    initial_learning_rate = 1e-7
-    # tf.keras.optimizers.schedules.PiecewiseConstantDecay(
-    #                                                                                           boundaries=[1,], 
-    #                                                                                           values=range(1e-6, 1e-2, 1e-4),
-    # )
-    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-                                                                                              initial_learning_rate,
-                                                                                              decay_steps=1,
-                                                                                              decay_rate=10,
-                                                                                              staircase=True)
+    # initial_learning_rate = 1e-7
+    # lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+    #                                                                                           initial_learning_rate,
+    #                                                                                           decay_steps=1,
+    #                                                                                           decay_rate=10,
+    #                                                                                           staircase=True)
+    # LR test setting for more detail
+    lr_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
+                                                                                              boundaries=np.arange(1,10,1), 
+                                                                                              values=np.arange(1e-4, 1e-3+1e-4, 1e-4),
+    )
 
     # build model
     model = models.deepkt_forget_tf2_2.DKTtempoModel_with_x(num_students, num_skills, max_sequence_length,
@@ -250,7 +251,6 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
     max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
                                                                                       num_students, num_skills, max_sequence_length,
                                                                                       num_batches, i)
-
     scores.append(max_score)
     steps.append(global_step)
     elapsed_time.append(time.perf_counter() - start)
