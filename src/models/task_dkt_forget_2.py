@@ -170,6 +170,7 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     # configure model
     # set Reduction.SUM for distributed traning
     model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
+                  # optimizer=tf.optimizers.Adam(learning_rate=lr_schedule), 
                 optimizer=tf.optimizers.Adam(learning_rate=args.learning_rate),
                 metrics=[tf.keras.metrics.AUC(), tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
 
