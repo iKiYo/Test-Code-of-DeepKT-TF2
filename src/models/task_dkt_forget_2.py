@@ -1,6 +1,7 @@
 import argparse
 import os
 import json
+import time
 
 import hypertune
 
@@ -88,6 +89,11 @@ def get_args():
         type=int,
         help='number of cross-validation folds, default=5')
     parser.add_argument(
+        '--num_trial',
+         default=1,
+         type=int,
+         help='number of trail for one-time experiment, default=1')
+    parser.add_argument(
         '--cv_set_number',
         default=1,
         type=int,
@@ -127,8 +133,10 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
   # start trainings
   scores = []
   steps = []
+  elapsed_time = []
 
   for i in range(num_fold):
+    start = time.perf_counter()
     train_index, val_index = next(kfold_index_gen)
     print(F"--Validation_set_number:{i+1}/{args.cv_num_folds}")
     print("TRAIN:", train_index, "TEST:", val_index)
@@ -142,6 +150,18 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     num_batches = num_students // args.batch_size
     print(F"num_batches for training : {num_batches}")
 
+     # LR test setting
+    initial_learning_rate = 1e-7
+    # tf.keras.optimizers.schedules.PiecewiseConstantDecay(
+    #                                                                                           boundaries=[1,], 
+    #                                                                                           values=range(1e-6, 1e-2, 1e-4),
+    # )
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+                                                                                              initial_learning_rate,
+                                                                                              decay_steps=1,
+                                                                                              decay_rate=10,
+                                                                                              staircase=True)
+
     # build model
     model = models.deepkt_forget_tf2_2.DKTtempoModel_with_x(num_students, num_skills, max_sequence_length,
                               args.embed_dim, args.hidden_units, args.dropout_rate)
@@ -150,7 +170,7 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     # set Reduction.SUM for distributed traning
     model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
                 optimizer=tf.optimizers.Adam(learning_rate=args.learning_rate),
-                metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
+                metrics=[tf.keras.metrics.AUC(), tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
 
     # KEEP: for debug 
     if i ==0:
@@ -163,12 +183,20 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
       print(model.summary()) 
 
 
-    max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
+    loss, max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
                                                                                       num_students, num_skills, max_sequence_length,
                                                                                       num_batches, i)
     scores.append(max_score)
     steps.append(global_step)
+    elapsed_time.append(time.perf_counter() - start)
+    print(F"-- finished {i+1}/{num_fold} --")
     print("-- finished one fold --")
+    
+  df = pd.DataFrame({'Trial ID': range(1,num_fold+1), 'loss':loss, 'val_auc':scores, 'Training step':steps,
+                                            ' Elapsed time ': elapsed_time, ' learning-rate': [args.learning_rate]*num_fold})
+  table_name= "results" + str(model.__class__.__name__) + args.train_csv_dataname
+
+  df.round(5).to_csv(os.path.join(args.job_dir, "result_table.csv"))
 
   #  Uses hypertune to report metrics for hyperparameter tuning.
   hpt = hypertune.HyperTune()
@@ -182,6 +210,7 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
   print("finished experiment")
 
 
+
 def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
 
   train_seq = make_dkt_forget_2_seq(args.data_folder_path, args.train_csv_dataname)
@@ -193,41 +222,55 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
   num_batches = num_students // args.batch_size
   print(F"num_batches for training : {num_batches}")
 
-  # build model
-  model = models.deepkt_forget_tf2_2.DKTtempoModel_with_x(num_students, num_skills, max_sequence_length,
-                            args.embed_dim, args.hidden_units, args.dropout_rate)
+   # start trainings
+  scores = []
+  steps = []
+  elapsed_time = []
+  for i in range(args.num_trial):
+    start = time.perf_counter()
+    # build model
+    model = models.deepkt_forget_tf2_2.DKTtempoModel_with_x(num_students, num_skills, max_sequence_length,
+                              args.embed_dim, args.hidden_units, args.dropout_rate)
 
-  # configure model
-  # set Reduction.SUM for distributed traning
-  model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
-              optimizer=tf.optimizers.Adam(learning_rate=args.learning_rate),
-              metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
+    # configure model
+    # set Reduction.SUM for distributed traning
+    model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
+                optimizer=tf.optimizers.Adam(learning_rate=args.learning_rate),
+                metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
 
-  # KEEP: for debug 
-  print("-- sample tf.data instance --")
-  print(train_tf_data.take(1).element_spec)
-  # sample = list(train_tf_data.take(1).as_numpy_iterator())
-  # for i in range(3):
-  #   print(sample[0][i])
-  #   print(np.array(sample[0][i]).shape)
-  print(model.summary()) 
+    # KEEP: for debug 
+    print("-- sample tf.data instance --")
+    print(train_tf_data.take(1).element_spec)
+    # sample = list(train_tf_data.take(1).as_numpy_iterator())
+    # for i in range(3):
+    #   print(sample[0][i])
+    #   print(np.array(sample[0][i]).shape)
+    print(model.summary()) 
 
-  # start training
-  max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
-                                                                                    num_students, num_skills, max_sequence_length,
-                                                                                    num_batches, 0)
+    # start training
+    loss, max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
+                                                                                      num_students, num_skills, max_sequence_length,
+                                                                                      num_batches, i)
+    scores.append(max_score)
+    steps.append(global_step)
+    elapsed_time.append(time.perf_counter() - start)
+    print(F"-- finished {i+1}/{args.num_trial} --")
+
+  df = pd.DataFrame({'Trial ID': range(1,args.num_trial+1), 'loss': loss, 'val_auc':scores, 'Training step':steps,
+                                            ' Elapsed time ': elapsed_time, ' learning-rate': [args.learning_rate]*args.num_trial})
+  df.round(5).to_csv(os.path.join(args.job_dir, "result_table.csv"))
 
   #  Uses hypertune to report metrics for hyperparameter tuning.
   hpt = hypertune.HyperTune()
   hpt.report_hyperparameter_tuning_metric(
       hyperparameter_metric_tag='val_auc',
-      metric_value=max_score,
-      global_step=global_step
+      metric_value=sum(scores)/args.num_trial,
+      global_step=steps[scores.index(max(scores))]
       )
   print("training result has been sent.") 
   print("finished experiment")
 
-
+  
 if __name__ == '__main__':
     args = get_args()
     num_students, num_skills, max_sequence_length = get_full_data_stats(args)
