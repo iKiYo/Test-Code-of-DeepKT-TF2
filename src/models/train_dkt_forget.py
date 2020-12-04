@@ -52,6 +52,6 @@ def train_model(outfile_path, model, train_dataset, val_dataset, hparams,
   print('Model exported to: {}'.format(export_path))
 
   if num_hparam_search == 0:
-    return history.history['loss'], max(history.history['val_auc']),  len(history.history['val_auc'])
+    return max(history.history['val_auc']),  len(history.history['val_auc'])
   else:
-    return history.history['loss'], max(history.history['val_auc_'+str(num_hparam_search)]), len(history.history['val_auc_'+str(num_hparam_search)])
+    return max(history.history['val_auc_'+str(num_hparam_search)]), len(history.history['val_auc_'+str(num_hparam_search)])

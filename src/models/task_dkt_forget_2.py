@@ -183,7 +183,7 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
       print(model.summary()) 
 
 
-    loss, max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
+    max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
                                                                                       num_students, num_skills, max_sequence_length,
                                                                                       num_batches, i)
     scores.append(max_score)
@@ -191,13 +191,12 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     elapsed_time.append(time.perf_counter() - start)
     print(F"-- finished {i+1}/{num_fold} --")
     print("-- finished one fold --")
-    
-  df = pd.DataFrame({'Trial ID': range(1,num_fold+1), 'loss':loss, 'val_auc':scores, 'Training step':steps,
-                                            ' Elapsed time ': elapsed_time, ' learning-rate': [args.learning_rate]*num_fold})
+
   table_name= "results" + str(model.__class__.__name__) + args.train_csv_dataname
-
+  df = pd.DataFrame({'Trial ID': range(1,num_fold+1), 'val_auc':scores, 'Training step':steps,
+                                            ' Elapsed time ': elapsed_time})
   df.round(5).to_csv(os.path.join(args.job_dir, "result_table.csv"))
-
+  
   #  Uses hypertune to report metrics for hyperparameter tuning.
   hpt = hypertune.HyperTune()
   hpt.report_hyperparameter_tuning_metric(
@@ -248,16 +247,17 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
     print(model.summary()) 
 
     # start training
-    loss, max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
+    max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
                                                                                       num_students, num_skills, max_sequence_length,
                                                                                       num_batches, i)
+
     scores.append(max_score)
     steps.append(global_step)
     elapsed_time.append(time.perf_counter() - start)
     print(F"-- finished {i+1}/{args.num_trial} --")
 
-  df = pd.DataFrame({'Trial ID': range(1,args.num_trial+1), 'loss': loss, 'val_auc':scores, 'Training step':steps,
-                                            ' Elapsed time ': elapsed_time, ' learning-rate': [args.learning_rate]*args.num_trial})
+  df = pd.DataFrame({'Trial ID': range(1,args.num_trial+1), 'val_auc':scores, 'Training step':steps,
+                                            ' Elapsed time ': elapsed_time})
   df.round(5).to_csv(os.path.join(args.job_dir, "result_table.csv"))
 
   #  Uses hypertune to report metrics for hyperparameter tuning.
