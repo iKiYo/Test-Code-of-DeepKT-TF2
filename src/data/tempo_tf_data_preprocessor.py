@@ -77,7 +77,7 @@ def make_dkt_forget_2_seq(data_folder_path, processed_csv_dataname):
       lambda r: (
           r['x'].values[:-1], # x
           r['seq_delta_t'].values[1:], # delta_t
-          r['skill_id'].values[:-1], # q_t
+          r['skill_id'].values[1:], # q_t
           r['correct'].values[1:], # a_t
       )
   )
