@@ -150,7 +150,7 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     num_batches = num_students // args.batch_size
     print(F"num_batches for training : {num_batches}")
 
-     # LR test setting
+    #  # LR test setting
     # initial_learning_rate = 1e-7
     # lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
     #                                                                                           initial_learning_rate,
@@ -159,8 +159,8 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     #                                                                                           staircase=True)
     # LR test setting for more detail
     lr_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
-                                                                                              boundaries=np.arange(1,10,1), 
-                                                                                              values=np.arange(1e-4, 1e-3+1e-4, 1e-4),
+                                                                                              boundaries=np.arange(1,10,1).tolist(), 
+                                                                                              values=np.arange(1e-4, 1e-3+1e-4, 1e-4).tolist(),
     )
 
     # build model
@@ -170,8 +170,8 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     # configure model
     # set Reduction.SUM for distributed traning
     model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
-                  # optimizer=tf.optimizers.Adam(learning_rate=lr_schedule), 
-                optimizer=tf.optimizers.Adam(learning_rate=args.learning_rate),
+                  optimizer=tf.optimizers.Adam(learning_rate=lr_schedule), 
+                # optimizer=tf.optimizers.Adam(learning_rate=args.learning_rate),
                 metrics=[tf.keras.metrics.AUC(), tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
 
     # KEEP: for debug 
