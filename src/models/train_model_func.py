@@ -39,7 +39,7 @@ def train_model(outfile_path, model, train_dataset, val_dataset, hparams,
   # for debug  
   # history = model.fit(train_dataset.take(1),  epochs=hparams.num_epochs,  validation_data=val_dataset.take(1), callbacks=[tboard_callback, early_stop_callback])
   history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,
-                                         validation_data=val_dataset.prefetch(5), steps_per_epoch=num_batches//5,
+                                         validation_data=val_dataset.prefetch(5),# steps_per_epoch=num_batches//5,
                                         #  validation_steps =num_batches//10,
                                          callbacks=[tboard_callback,early_stop_callback])
   print("-- finished training --")
