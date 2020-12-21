@@ -12,16 +12,16 @@ data_file_path=data_folder_path + data_file_name
 output_path = data_folder_path + prepared_data_name
 
   
-def preprocess_csv(csv_file_path=data_file_path, out_path=output_path):
+def preprocess_csv(csv_file_path=data_file_path, out_path=output_path, drop_na_skill=True):
   # Load Assist2012 dataset, use "skill id"
   # Todo: read as int32 or 64
-  
-  df = pd.read_csv(data_file_path, usecols=['user_id', 'skill_id', 'correct', 'end_time'])
+  df = pd.read_csv(csv_file_path, usecols=['user_id', 'skill_id', 'correct', 'end_time'])
 
-  # Drop NaN skill ids 
-  df = df.dropna(subset = ['skill_id'])
-  #df = df.fillna(value={'skill_id': 999}) # Or fill NaN skill
-  df = df.astype({'skill_id': 'int32'})
+  # Drop NaN skill ids
+  if drop_na_skill:
+    df = df.dropna(subset = ['skill_id'])
+  else:
+    df = df.fillna(value={'skill_id': 999}) # Or fill NaN skill
 
   # Binarize correct values
   df = df[df["correct"].isin([0, 1])]
@@ -37,6 +37,8 @@ def preprocess_csv(csv_file_path=data_file_path, out_path=output_path):
   # Enumerate and renumber the remain student and skill IDs
   df['user_id'], _ = pd.factorize(df['user_id'], sort=False)
   df['skill_id'], _ = pd.factorize(df['skill_id'], sort=False)
+  # df = df.astype({'skill_id': 'int32'})
+
 
   # Show N, M, T
   num_students, num_skills = df[['user_id','skill_id']].nunique()
@@ -47,9 +49,8 @@ def preprocess_csv(csv_file_path=data_file_path, out_path=output_path):
   # Cross skill id with answer to form a synthetic feature
   df['x'] = df['skill_id'] * 2 + df['correct']
 
-  df = df[['user_id', 'skill_id', 'correct']]
+  # df = df[['user_id', 'skill_id', 'correct','x']]
   df.to_csv(out_path, index=False)
-  # df.to_csv("/content/drive/My Drive/master thesis/Datasets/assistment_dataset/assist12_4cols_noNaNskill.csv", index=False)
   print(F"preprocessed file is exported to \n{out_path}\n")
 
 

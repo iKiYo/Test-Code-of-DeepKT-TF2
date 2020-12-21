@@ -1,0 +1,61 @@
+# Dockerfile for Deep Knowledge Tracing 
+# GPU training in AI platform
+FROM nvidia/cuda:10.0-cudnn7-runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+  && apt-get install -y tzdata
+
+# Installs necessary dependencies.
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#          wget \
+#          curl \
+#          python-dev && \
+# 	rm -rf /var/lib/apt/lists/*
+COPY u_packages.txt /tmp/
+RUN	apt-get update && \
+	xargs -a /tmp/u_packages.txt apt-get -y install --no-install-recommends && \
+	rm -rf /var/lib/apt/lists/*
+RUN	apt-get update && \
+    apt-get -y install cmake
+
+# Installs pip.
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python get-pip.py && \
+    pip install setuptools && \
+    rm get-pip.py
+
+WORKDIR /root
+
+# Installs pypl packages
+COPY requirements.txt /tmp/
+RUN pip3 install --requirement /tmp/requirements.txt
+RUN pip3 install --upgrade pip && \
+	pip3 install tensorflow==2.3
+
+# Installs google cloud sdk, this is mostly for using gsutil to export model.
+RUN wget -nv \
+    https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz && \
+    mkdir /root/tools && \
+    tar xvzf google-cloud-sdk.tar.gz -C /root/tools && \
+    rm google-cloud-sdk.tar.gz && \
+    /root/tools/google-cloud-sdk/install.sh --usage-reporting=false \
+        --path-update=false --bash-completion=false \
+        --disable-installation-options && \
+    rm -rf /root/.config/* && \
+    ln -s /root/.config /config && \
+    # Remove the backup directory that gcloud creates
+    rm -rf /root/tools/google-cloud-sdk/.install/.backup
+
+# Path configuration
+ENV PATH $PATH:/root/tools/google-cloud-sdk/bin
+# Make sure gsutil will use the default service account
+RUN echo '[GoogleCompute]\nservice_account = default' > /etc/boto.cfg
+
+# Copies the trainer code
+RUN mkdir /root/src
+COPY src /root/src
+
+# Sets up the entry point to invoke the trainer.
+ENTRYPOINT ["python", "models/task.py"]
