@@ -39,7 +39,7 @@ def train_model(outfile_path, model, train_dataset, val_dataset, hparams,
   # logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S") +"-"+  model_name
   logs = os.path.join(outfile_path, "keras_tensorboard")
   tboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logs,
-                                                 histogram_freq = 1)#, update_freq='batch')
+                                                 histogram_freq = 1, update_freq='batch')
   # for debug  
   history = model.fit(train_dataset.take(1),  epochs=hparams.num_epochs,  validation_data=val_dataset.take(1), callbacks=[tboard_callback, early_stop_callback])
   # history = model.fit(train_dataset.prefetch(5),  epochs=hparams.num_epochs,
