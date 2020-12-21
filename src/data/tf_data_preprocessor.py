@@ -53,7 +53,7 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
   # seq.to_csv(os.path.join(data_folder_path,"seq_"+processed_csv_dataname), index=False)
 
   return seq
-
+  
 
 def prepare_cv_id_array(data_folder_path, train_csv_dataname, num_fold):#, *hparams, *num_hparam_search):
   """ Make index array for X th fold cross validation splitting train/validation dataset
