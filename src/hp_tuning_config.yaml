@@ -1,7 +1,11 @@
 trainingInput:
   hyperparameters:
     goal: MAXIMIZE
+<<<<<<< HEAD
+    maxTrials: 3
+=======
     maxTrials: 5
+>>>>>>> develop
     maxParallelTrials: 1
     hyperparameterMetricTag: val_auc
     params:

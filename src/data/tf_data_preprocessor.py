@@ -53,7 +53,7 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
   # seq.to_csv(os.path.join(data_folder_path,"seq_"+processed_csv_dataname), index=False)
 
   return seq
-
+  
 
 def prepare_cv_id_array(data_folder_path, train_csv_dataname, num_fold):#, *hparams, *num_hparam_search):
   """ Make index array for X th fold cross validation splitting train/validation dataset
@@ -117,12 +117,23 @@ def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_se
           drop_remainder=True
       )
 
+  # make mask for metrics
+  padded_dataset  = padded_dataset.map(
+      lambda x, skill, label: (
+          x,
+          skill,
+          label,
+          tf.cast(tf.math.logical_not(tf.math.equal(label, -1)), tf.float32) # mask for label
+      )
+  )
+
   # Dict format dataset to feed built-in function such as model.fit
   dict_dataset = padded_dataset.map(
-          lambda x, delta_q, a : (
+          lambda x, delta_q, a, mask : (
               {"x" : x,
                 "q" : delta_q},
-              { "outputs" : a}
+              { "outputs" : a},
+              mask
           )
       )
   
