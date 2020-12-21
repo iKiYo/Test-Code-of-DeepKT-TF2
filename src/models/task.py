@@ -1,7 +1,7 @@
 import argparse
 import os
 import json
-
+import time
 import hypertune
 
 import numpy as np
@@ -93,6 +93,11 @@ def get_args():
         type=int,
         help='cross validation dataset number, default=1')
     parser.add_argument(
+        '--num_trial',
+        default=1,
+        type=int,
+        help='number of trail for one-time experiment, default=1')
+    parser.add_argument(
         '--verbosity',
         choices=['DEBUG', 'ERROR', 'FATAL', 'INFO', 'WARN'],
         default='INFO')
@@ -113,6 +118,7 @@ def get_full_data_stats(args):
   print(F"Full dataset info : number of students:{num_students}  number of skills:{num_skills}  max attempt :{max_sequence_length}")
   return num_students, num_skills, max_sequence_length
 
+
 def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_length):
   print(args)
   # prepare seq
@@ -122,11 +128,13 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
   num_fold=args.cv_num_folds
   kfold_index_gen = get_kfold_id_generator(all_train_seq, num_fold)
 
-  # start trainings
+   # start trainings
   scores = []
   steps = []
+  elapsed_time = []
 
   for i in range(num_fold):
+    start = time.perf_counter()
     train_index, val_index = next(kfold_index_gen)
     print(F"--Validation_set_number:{i+1}/{args.cv_num_folds}")
     print("TRAIN:", train_index, "TEST:", val_index)
@@ -166,6 +174,8 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
                                                                                       num_batches, i)
     scores.append(max_score)
     steps.append(global_step)
+    elapsed_time.append(time.perf_counter() - start)
+    print(F"-- finished {i+1}/{num_fold} --")
     print("-- finished one fold --")
 
   #  Uses hypertune to report metrics for hyperparameter tuning.
@@ -191,36 +201,50 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
   num_batches = num_students // args.batch_size
   print(F"num_batches for training : {num_batches}")
 
-  # build model
-  model = models.deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length,
-                            args.embed_dim, args.hidden_units, args.dropout_rate)
+   # start trainings
+  scores = []
+  steps = []
+  elapsed_time = []
+  for i in range(args.num_trial):
+    start = time.perf_counter()
+    # build model
+    model = models.deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length,
+                              args.embed_dim, args.hidden_units, args.dropout_rate)
 
-  # configure model
-  # set Reduction.SUM for distributed traning
-  model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
-              optimizer=tf.optimizers.SGD(learning_rate=args.learning_rate),
-              weighted_metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
+    # configure model
+    # set Reduction.SUM for distributed traning
+    model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
+                optimizer=tf.optimizers.SGD(learning_rate=args.learning_rate),
+                metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
 
-  # KEEP: for debug 
-  print("-- sample tf.data instance --")
-  print(train_tf_data.take(1).element_spec)
-  # sample = list(train_tf_data.take(1).as_numpy_iterator())
-  # for i in range(3):
-  #   print(sample[0][i])
-  #   print(np.array(sample[0][i]).shape)
-  print(model.summary()) 
+    # KEEP: for debug 
+    print("-- sample tf.data instance --")
+    print(train_tf_data.take(1).element_spec)
+    # sample = list(train_tf_data.take(1).as_numpy_iterator())
+    # for i in range(3):
+    #   print(sample[0][i])
+    #   print(np.array(sample[0][i]).shape)
+    print(model.summary()) 
 
-  # start training
-  max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
-                                                                                    num_students, num_skills, max_sequence_length,
-                                                                                    num_batches, 0)
+    # start training
+    max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
+                                                                                      num_students, num_skills, max_sequence_length,
+                                                                                      num_batches, i)
+    scores.append(max_score)
+    steps.append(global_step)
+    elapsed_time.append(time.perf_counter() - start)
+    print(F"-- finished {i+1}/{args.num_trial} --")
+
+  df = pd.DataFrame({'Trial ID': range(1,args.num_trial+1), 'val_auc':scores, 'Training step':steps,
+                                            ' Elapsed time ': elapsed_time, ' learning-rate': [args.learning_rate]*3})
+  df.round(5).to_csv(os.path.join(args.job_dir, "result_table.csv"))
 
   #  Uses hypertune to report metrics for hyperparameter tuning.
   hpt = hypertune.HyperTune()
   hpt.report_hyperparameter_tuning_metric(
       hyperparameter_metric_tag='val_auc',
-      metric_value=max_score,
-      global_step=global_step
+      metric_value=sum(scores)/args.num_trial,
+      global_step=steps[scores.index(max(scores))]
       )
   print("training result has been sent.") 
   print("finished experiment")
