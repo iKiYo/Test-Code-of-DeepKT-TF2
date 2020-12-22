@@ -168,9 +168,9 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     # configure model
     # set Reduction.SUM for distributed traning
     model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
-                # optimizer=tf.optimizers.SGD(learning_rate=args.learning_rate),
-                optimizer=tf.optimizers.SGD(learning_rate=lr_schedule),
-                metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
+                optimizer=tf.optimizers.SGD(learning_rate=args.learning_rate),
+                # optimizer=tf.optimizers.SGD(learning_rate=lr_schedule),
+                weighted_metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
 
     # KEEP: for debug 
     if i ==0:
@@ -229,7 +229,7 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
     # set Reduction.SUM for distributed traning
     model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
                 optimizer=tf.optimizers.SGD(learning_rate=args.learning_rate),
-                metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
+                weighted_metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
 
     # KEEP: for debug 
     print("-- sample tf.data instance --")
