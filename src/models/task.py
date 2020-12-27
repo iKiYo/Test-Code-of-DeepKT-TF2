@@ -9,8 +9,8 @@ import pandas as pd
 import tensorflow as tf
 
 import models.deepkt_tf2
-from .train_model_func import train_model
-from data.tf_data_preprocessor import prepare_batched_tf_data, split_dataset, make_sequence_data, get_kfold_id_generator
+from .train_model import train_model
+from data.tf_data_preprocessor import prepare_batched_tf_data, make_sequence_data, get_kfold_id_generator
 
 def get_args():
     """Argument parser.
