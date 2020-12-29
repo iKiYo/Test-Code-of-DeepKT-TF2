@@ -49,10 +49,13 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
   return seq
   
 
-def prepare_cv_id_array(data_folder_path, train_csv_dataname, num_fold):#, *hparams, *num_hparam_search):
-  """ Make index array for X th fold cross validation splitting train/validation dataset
+def prepare_cv_id_array(data_folder_path, train_csv_dataname, num_fold):
+  #, *hparams, *num_hparam_search):
+  """ Make index array for X th fold cross validation splitting train/validation
+ dataset
   Input: Train data in CSV
-  Output: None, directly store the array in  .npy file to the same folder of the given train dataset
+  Output: None, directly store the array in  .npy file to the same folder of 
+  the given train dataset
   """
   # Prepare seq series data
   all_train_seq = make_sequence_data(data_folder_path, train_csv_dataname)
@@ -67,12 +70,14 @@ def prepare_cv_id_array(data_folder_path, train_csv_dataname, num_fold):#, *hpar
     index_array = np.append(index_array, [train_index ,test_index])
   index_array = index_array.reshape((num_fold,2))
 
-  index_array_path = os.path.join(data_folder_path, 'cv_id_array_'+train_csv_dataname+'.npy')
+  index_array_path = os.path.join(data_folder_path,
+                                  'cv_id_array_'+train_csv_dataname+'.npy')
   np.save(index_array_path, index_array)
   print(F"ID arrays cv_id_array.npy for CrossValidation saved to {index_array_path}")
 
 
-def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_sequence_length):
+def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills,
+                            max_sequence_length):
 
   # Transform into tf.data format
   dataset = tf.data.Dataset.from_generator(
@@ -102,32 +107,33 @@ def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_se
   # Padding for LSTM
   # FIX: padding value should be Args and default -1
   padded_dataset = transformed_dataset.padded_batch(
-          batch_size=batch_size,
-          padding_values=(0, 0., -1),
-          padded_shapes=([max_sequence_length], 
-                                               [max_sequence_length, num_skills],
-                                              [max_sequence_length, 1]),
-          drop_remainder=True
-      )
+    batch_size=batch_size,
+    padding_values=(0, 0., -1),
+    padded_shapes=([None], 
+                   [None, num_skills],
+                   [None, 1]),
+    drop_remainder=True
+  )
 
   # make mask for metrics
   padded_dataset  = padded_dataset.map(
-      lambda x, skill, label: (
-          x,
-          skill,
-          label,
-          tf.cast(tf.math.logical_not(tf.math.equal(label, -1)), tf.float32) # mask for label
+    lambda x, skill, label: (
+      x,
+      skill,
+      label,
+      tf.cast(tf.math.logical_not(tf.math.equal(label, -1)),
+              tf.float32) # mask for label
       )
   )
 
   # Dict format dataset to feed built-in function such as model.fit
   dict_dataset = padded_dataset.map(
-          lambda x, q, a, mask : (
-              {"x" : x,
-                "q" : q},
-              { "outputs" : a},
-              mask
-          )
-      )
+    lambda x, q, a, mask : (
+      {"x" : x,
+       "q" : q},
+      {"outputs" : a},
+      mask
+    )
+  )
   
   return dict_dataset

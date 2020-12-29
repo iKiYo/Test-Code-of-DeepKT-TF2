@@ -6,11 +6,11 @@ from tensorflow.keras import layers
 class DKTModel(tf.keras.Model):
 
 
-  def __init__(self, num_students, num_skills, max_sequence_length, embed_dim=200,
-                            hidden_units=100, dropout_rate=0.2):   
+  def __init__(self, num_students, num_skills, max_sequence_length,
+               embed_dim=200, hidden_units=100, dropout_rate=0.2):   
 
-    x = tf.keras.Input(shape=(max_sequence_length,), name='x')
-    q = tf.keras.Input(shape=(max_sequence_length, num_skills), name='q')
+    x = tf.keras.Input(shape=(None,), name='x')
+    q = tf.keras.Input(shape=(None, num_skills), name='q')
 
     emb = layers.Embedding(num_skills*2+1, embed_dim, 
                            embeddings_initializer=\
