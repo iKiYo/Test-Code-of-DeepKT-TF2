@@ -149,17 +149,17 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     print(F"num_batches for training : {num_batches}")
 
     # LR test setting
-    initial_learning_rate = 1e-7
-    range_list = np.arange(1e-3, 1e-2+1e-3, 1e-3).tolist()
-    lr_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
-                                                                                              boundaries=np.arange(1, len(range_list)).tolist(), 
-                                                                                              values=range_list,
-    )
-    # lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-    #                                                                                           initial_learning_rate,
-    #                                                                                           decay_steps=1,
-    #                                                                                           decay_rate=10,
-    #                                                                                           staircase=True)
+    initial_learning_rate = 1e-2
+    # range_list = np.arange(1e-3, 1e-2+1e-3, 1e-3).tolist()
+    # lr_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
+    #                                                                                           boundaries=np.arange(1, len(range_list)).tolist(), 
+    #                                                                                           values=range_list,
+    # )
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+                                                                                              initial_learning_rate,
+                                                                                              decay_steps=100,
+                                                                                              decay_rate=0.9,
+                                                                                              staircase=True)
 
     # build model
     model = models.deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length,
@@ -168,8 +168,8 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     # configure model
     # set Reduction.SUM for distributed traning
     model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
-                optimizer=tf.optimizers.SGD(learning_rate=args.learning_rate),
-                # optimizer=tf.optimizers.SGD(learning_rate=lr_schedule),
+                # optimizer=tf.optimizers.Adam(learning_rate=args.learning_rate),
+                optimizer=tf.optimizers.Adam(learning_rate=lr_schedule),
                 weighted_metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
 
     # KEEP: for debug 
@@ -228,7 +228,7 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
     # configure model
     # set Reduction.SUM for distributed traning
     model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
-                optimizer=tf.optimizers.SGD(learning_rate=args.learning_rate),
+                optimizer=tf.optimizers.Adam(learning_rate=args.learning_rate),
                 weighted_metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
 
     # KEEP: for debug 
