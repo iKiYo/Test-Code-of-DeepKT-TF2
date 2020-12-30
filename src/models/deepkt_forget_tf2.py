@@ -13,12 +13,10 @@ class DKTforgetModel(tf.keras.Model):
     c_t_1 = tf.keras.Input(shape=(None, num_skills*3), name='c_t_1')
 
     emb =  layers.Dense(embed_dim, trainable=False, 
-                                                      kernel_initializer=tf.keras.initializers.RandomNormal(seed=777),
-                                                      input_shape=(None, None, num_skills*2))
+                        input_shape=(None, None, num_skills*2))
     
     c_emb = layers.Dense(embed_dim, trainable=True, 
-                                                      kernel_initializer=tf.keras.initializers.RandomNormal(seed=77),
-                                                      input_shape=(None, None, num_skills*3))
+                         input_shape=(None, None, num_skills*3))
     c_concat = layers.Concatenate()
     
     lstm =  layers.LSTM(hidden_units, return_sequences=True)

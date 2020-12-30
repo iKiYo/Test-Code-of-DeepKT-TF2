@@ -198,7 +198,6 @@ def prepare_batched_tf_data_2(preprocessed_csv_seq, batch_size, num_skills, max_
                           [None, num_skills], # q (skill of next step attempt)
                           [None, 1], # a
                           ),
-          drop_remainder=True
   )
 
   # Dict format dataset to feed built-in function such as model.fit
