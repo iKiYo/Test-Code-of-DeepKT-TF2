@@ -1,3 +1,4 @@
+
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -13,8 +14,6 @@ class DKTModel(tf.keras.Model):
     q = tf.keras.Input(shape=(None, num_skills), name='q')
 
     emb = layers.Embedding(num_skills*2+1, embed_dim, 
-                           embeddings_initializer=\
-                           tf.keras.initializers.RandomNormal(seed=777),
                            input_length=max_sequence_length,
                            mask_zero=True)
 

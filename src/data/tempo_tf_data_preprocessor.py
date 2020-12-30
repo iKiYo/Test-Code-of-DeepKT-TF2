@@ -9,10 +9,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from sklearn.model_selection import KFold
-# print(tf.test.is_gpu_available())
-# preprocessed_csv_path ="/content/drive/My Drive/master thesis/Datasets/assistment_dataset/assist12_4cols_noNaNskill.csv" 
-preprocessed_csv_path = "../../data/processed/assist12_4cols_noNaNskill.csv"
-batch_size = 25
+
 
 def get_kfold_id_generator(array, num_fold):
   kf = KFold(n_splits = num_fold, shuffle = True, random_state = 2)
@@ -54,11 +51,7 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
           r['correct'].values[1:], # a
       )
   )
-
   assert num_students, len(seq)
-  # Todo: tuple converted to str, when read from csv
-  # write out csv  file to storage
-  # seq.to_csv(os.path.join(data_folder_path,"seq_"+processed_csv_dataname), index=False)
 
   return seq
 
@@ -84,37 +77,12 @@ def make_dkt_forget_2_seq(data_folder_path, processed_csv_dataname):
   assert num_students, len(seq)
   return seq
 
-def prepare_cv_id_array(data_folder_path, train_csv_dataname, num_fold):#, *hparams, *num_hparam_search):
-  """ Make index array for X th fold cross validation splitting train/validation dataset
-  Input: Train data in CSV
-  Output: None, directly store the array in  .npy file to the same folder of the given train dataset
-  """
-  # Prepare seq series data
-  all_train_seq = make_sequence_data(data_folder_path, train_csv_dataname)
-
-  # Get generator 
-  kfold_index_gen = get_kfold_id_generator(all_train_seq, num_fold)
-
-  # Make ID array from generator and save it
-  index_array= np.array([])
-  for train_index, test_index in kfold_index_gen:
-    # print("TRAIN:", train_index, "TEST:", test_index)
-    index_array = np.append(index_array, [train_index ,test_index])
-  index_array = index_array.reshape((num_fold,2))
-
-  index_array_path = os.path.join(data_folder_path, 'cv_id_array_'+train_csv_dataname+'.npy')
-  np.save(index_array_path, index_array)
-  print(F"ID arrays cv_id_array.npy for CrossValidation saved to {index_array_path}")
-
 
 def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_sequence_length):
 
-  seq = preprocessed_csv_seq
-
   # Transform into tf.data format
   dataset = tf.data.Dataset.from_generator(
-      generator=lambda: seq,
-      # output_types=(tf.int32, tf.int32, tf.int32, tf.int32, tf.int32, tf.int32, tf.int32, tf.int32, tf.int32, tf.int32)
+      generator=lambda: preprocessed_csv_seq,
       output_types=(tf.int32,
                     tf.int32, # skill
                     tf.float32, tf.float32, tf.float32, # c_t
@@ -154,36 +122,49 @@ def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_se
   padded_dataset = transformed_dataset.padded_batch(
           batch_size=batch_size,
           padding_values=(.0 ,0 ,.0, .0, -1),# -1),
-          padded_shapes=([max_sequence_length, 2*num_skills], 
-                         [max_sequence_length, num_skills], 
-                         [max_sequence_length, 3*num_skills],
-                         [max_sequence_length, 3*num_skills],
-                         [max_sequence_length, 1],
-                         ),
-          drop_remainder=True
+          padded_shapes=([None, 2*num_skills], 
+                         [None, num_skills], 
+                         [None, 3*num_skills],
+                         [None, 3*num_skills],
+                         [None, 1],
+                         )
       )
   
+
+  # make mask for metrics
+  padded_dataset  = padded_dataset.map(
+    lambda x, delta_q, c_t, c_t_1, a: (
+      x,
+      delta_q,
+      c_t,
+      c_t_1,
+      a,
+      tf.cast(tf.math.logical_not(tf.math.equal(a, -1)),
+              tf.float32) # mask for label
+      )
+  )
+
+
   # Dict format dataset to feed built-in function such as model.fit
   dict_dataset = padded_dataset.map(
-          lambda x, delta_q, c_t, c_t_1, a : (
+          lambda x, delta_q, c_t, c_t_1, a, mask : (
               {"x" : x,
                 "q" : delta_q,
                "c_t" : c_t,
                "c_t_1" : c_t_1,
                },
-              { "outputs" : a}
+              { "outputs" : a},
+              mask
           )
       )
   return dict_dataset  
 
 
 def prepare_batched_tf_data_2(preprocessed_csv_seq, batch_size, num_skills, max_sequence_length):
- 
-  seq = preprocessed_csv_seq 
-  
+   
   # Transform into tf.data format
   dataset = tf.data.Dataset.from_generator(
-      generator=lambda: seq,
+      generator=lambda: preprocessed_csv_seq,
       output_types=(
                     tf.int32, # x
                     tf.float32, # delta current
@@ -210,12 +191,12 @@ def prepare_batched_tf_data_2(preprocessed_csv_seq, batch_size, num_skills, max_
           batch_size=batch_size,
           padding_values=(.0, .0, .0, -1),
           padded_shapes=(
-                          [max_sequence_length, 2*num_skills],  # x          
+                          [None, 2*num_skills],  # x          
                           # [max_sequence_length, num_skills], # expanded_delta
-                          [max_sequence_length, 1], # delta
+                          [None, 1], # delta
                           # [max_sequence_length, num_skills], # positive sign of skill
-                          [max_sequence_length, num_skills], # q (skill of next step attempt)
-                          [max_sequence_length, 1], # a
+                          [None, num_skills], # q (skill of next step attempt)
+                          [None, 1], # a
                           ),
           drop_remainder=True
   )
@@ -233,32 +214,3 @@ def prepare_batched_tf_data_2(preprocessed_csv_seq, batch_size, num_skills, max_
           )
   )
   return dict_dataset  
-
-
-def split_dataset(dataset, total_size, test_fraction, val_fraction=None):
-    def split(dataset, split_size):
-        split_set = dataset.take(split_size)
-        dataset = dataset.skip(split_size)
-        return dataset, split_set
-
-    if not 0 < test_fraction < 1:
-        raise ValueError("test_fraction must be between (0, 1)")
-
-    if val_fraction is not None and not 0 < val_fraction < 1:
-        raise ValueError("val_fraction must be between (0, 1)")
-
-    test_size = np.ceil(test_fraction * total_size)
-    train_size = total_size - test_size
-
-    if test_size == 0 or train_size == 0:
-        raise ValueError(
-            "The train and test datasets must have at least 1 element. Reduce the split fraction or get more data.")
-
-    train_set, test_set = split(dataset, test_size)
-
-    val_set = None
-    if val_fraction:
-        val_size = np.ceil(train_size * val_fraction)
-        train_set, val_set = split(train_set, val_size)
-
-    return train_set, test_set, val_set

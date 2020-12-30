@@ -39,7 +39,7 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
   seq = df.groupby('user_id').apply(
       lambda r: (
           r['x'].values[:-1]+1, 
-          r['skill_id'].values[1:]+1,
+          r['skill_id'].values[1:],
           r['correct'].values[1:],
       )
   )
@@ -105,14 +105,12 @@ def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills,
   #   print(padded_sample[0][i].T)
 
   # Padding for LSTM
-  # FIX: padding value should be Args and default -1
   padded_dataset = transformed_dataset.padded_batch(
     batch_size=batch_size,
     padding_values=(0, 0., -1),
     padded_shapes=([None], 
                    [None, num_skills],
                    [None, 1]),
-    drop_remainder=True
   )
 
   # make mask for metrics

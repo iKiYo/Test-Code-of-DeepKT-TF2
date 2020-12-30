@@ -8,7 +8,7 @@ import hypertune
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import models.deepkt_forget_tf2
-from data.tempo_tf_data_preprocessor import prepare_batched_tf_data, split_dataset
+from data.tempo_tf_data_preprocessor import prepare_batched_tf_data
 from data.preprocessor import preprocess_csv
 
 
