@@ -138,6 +138,12 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
   num_fold=args.cv_num_folds
   kfold_index_gen = get_kfold_id_generator(all_train_seq, num_fold)
 
+
+  loss=tf.keras.losses.BinaryCrossentropy(
+      reduction=tf.keras.losses.Reduction.SUM)
+  auc, bce = tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy() 
+
+
    # start trainings
   scores = []
   steps = []
@@ -153,46 +159,59 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     train_seq, val_seq = all_train_seq.iloc[train_index], all_train_seq.iloc[val_index]
 
     # prepare batch (padding, one_hot)
-    train_tf_data = prepare_batched_tf_data(train_seq, args.batch_size, num_skills, max_sequence_length)
-    val_tf_data = prepare_batched_tf_data(val_seq, args.batch_size, num_skills, max_sequence_length)
+    train_tf_data = prepare_batched_tf_data(train_seq,
+                                            args.batch_size,
+                                            num_skills,
+                                            max_sequence_length
+    )
+    val_tf_data = prepare_batched_tf_data(val_seq,
+                                          args.batch_size,
+                                          num_skills,
+                                          max_sequence_length
+    )
     num_batches = num_students // args.batch_size
     print(F"num_batches for training : {num_batches}")
 
 
     # build model
-    model = models.deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length,
-                              args.embed_dim, args.hidden_units, args.dropout_rate)
-
-
+    model = models.deepkt_tf2.DKTModel(num_students, num_skills,
+                                       max_sequence_length,
+                                       args.embed_dim, args.hidden_units,
+                                       args.dropout_rate)
+    
     # LR test setting
     learning_rate = args.learning_rate
     if args.LR_test != 0.0:
       print(F"lr {args.LR_test}")
       args.num_epochs=1
-      train_tf_data = train_tf_data.take(10)
-      val_tf_data = val_tf_data.take(10)
 
-      if args.LR_test == 1e-10:
-        init_lr = 1e-10
+      if args.LR_test == 1e-6:
+        init_lr = 1e-6
         learning_rate = tf.keras.optimizers.schedules.ExponentialDecay(
-                                                                                                  init_lr,
-                                                                                                  decay_steps=1,
-                                                                                                  decay_rate=10,
-                                                                                                  staircase=True)
-      if args.LR_test > 1e-10:
+            init_lr,
+            decay_steps=1,
+            decay_rate=10,
+            staircase=True)
+        train_tf_data = train_tf_data.take(6)
+        val_tf_data = val_tf_data.take(6)
+
+      if args.LR_test > 1e-6:
         init_lr = args.LR_test
         range_list = np.arange(init_lr, init_lr*10+init_lr, init_lr).tolist()
         learning_rate = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
-                                                                                                  boundaries=np.arange(1, len(range_list)).tolist(), 
-                                                                                                  values=range_list,
+            boundaries=np.arange(1, len(range_list)).tolist(), 
+            values=range_list,
         )
+        train_tf_data = train_tf_data.take(10)
+        val_tf_data = val_tf_data.take(10)
 
     # configure model
     # set Reduction.SUM for distributed traning
-    model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
-                optimizer=tf.optimizers.Adam(learning_rate=learning_rate),
-                weighted_metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
-
+    optimizer=tf.optimizers.Adam(learning_rate=learning_rate)
+    auc.reset_states()
+    bce.reset_states()
+    model.compile(optimizer, loss, weighted_metrics=[auc, bce])
+    
     # KEEP: for debug 
     if i ==0:
       print("-- sample tf.data instance --")
@@ -203,15 +222,23 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
     #   print(np.array(sample[0][i]).shape)
       print(model.summary()) 
 
-
-    max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
-                                                                                      num_students, num_skills, max_sequence_length,
-                                                                                      num_batches, i)
+    max_score, global_step = train_model(args.job_dir, model,
+                                         train_tf_data, val_tf_data, args,
+                                         num_students, num_skills,
+                                         max_sequence_length,
+                                         num_batches, i)
     scores.append(max_score)
     steps.append(global_step)
     elapsed_time.append(time.perf_counter() - start)
     print(F"-- finished {i+1}/{num_fold} --")
     print("-- finished one fold --")
+
+    
+  df = pd.DataFrame({'Trial ID': range(1,num_fold+1),
+                     'val_auc':scores, 'Training step':steps,
+                     ' Elapsed time ': elapsed_time,
+                     ' learning-rate': [args.learning_rate]*num_fold})
+  df.round(5).to_csv(os.path.join(args.job_dir, "result_table.csv"))
 
   #  Uses hypertune to report metrics for hyperparameter tuning.
   hpt = hypertune.HyperTune()
@@ -231,10 +258,27 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
   val_seq = make_sequence_data(args.data_folder_path, args.test_csv_dataname)
 
   # prepare batch (padding, one_hot)
-  train_tf_data = prepare_batched_tf_data(train_seq, args.batch_size, num_skills, max_sequence_length)
-  val_tf_data = prepare_batched_tf_data(val_seq, args.batch_size, num_skills, max_sequence_length)
+  train_tf_data = prepare_batched_tf_data(train_seq,
+                                          args.batch_size,
+                                          num_skills,
+                                        max_sequence_length
+  )
+  val_tf_data = prepare_batched_tf_data(val_seq,
+                                        args.batch_size,
+                                        num_skills,
+                                        max_sequence_length
+  )
   num_batches = num_students // args.batch_size
   print(F"num_batches for training : {num_batches}")
+
+  # build model
+  model = models.deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length,
+                            args.embed_dim, args.hidden_units, args.dropout_rate)
+
+  loss=tf.keras.losses.BinaryCrossentropy(
+      reduction=tf.keras.losses.Reduction.SUM)
+  optimizer=tf.optimizers.Adam(learning_rate=args.learning_rate),
+  auc, bce = tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy() 
 
    # start trainings
   scores = []
@@ -242,15 +286,11 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
   elapsed_time = []
   for i in range(args.num_trial):
     start = time.perf_counter()
-    # build model
-    model = models.deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length,
-                              args.embed_dim, args.hidden_units, args.dropout_rate)
 
-    # configure model
     # set Reduction.SUM for distributed traning
-    model.compile(loss=tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM),
-                optimizer=tf.optimizers.Adam(learning_rate=args.learning_rate),
-                weighted_metrics=[tf.keras.metrics.AUC(),tf.keras.metrics.BinaryCrossentropy()]) # keep BCEntropyfor debug
+    auc.reset_states()
+    bce.reset_states()
+    model.compile(loss, optimizer, weighted_metrics=[auc, bce]) # keep BCEntropyfor debug
 
     # KEEP: for debug 
     print("-- sample tf.data instance --")
@@ -262,16 +302,21 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
     print(model.summary()) 
 
     # start training
-    max_score, global_step = train_model(args.job_dir, model, train_tf_data, val_tf_data, args,
-                                                                                      num_students, num_skills, max_sequence_length,
-                                                                                      num_batches, i)
+    max_score, global_step = train_model(args.job_dir, model,
+                                         train_tf_data, val_tf_data, args,
+                                         num_students, num_skills,
+                                         max_sequence_length,
+                                         num_batches, i)
     scores.append(max_score)
     steps.append(global_step)
     elapsed_time.append(time.perf_counter() - start)
     print(F"-- finished {i+1}/{args.num_trial} --")
 
-  df = pd.DataFrame({'Trial ID': range(1,args.num_trial+1), 'val_auc':scores, 'Training step':steps,
-                                            ' Elapsed time ': elapsed_time, ' learning-rate': [args.learning_rate]*3})
+    
+  df = pd.DataFrame({'Trial ID': range(1,args.num_trial+1),
+                     'val_auc':scores, 'Training step':steps,
+                     ' Elapsed time ': elapsed_time,
+                     ' learning-rate': [args.learning_rate]*3})
   df.round(5).to_csv(os.path.join(args.job_dir, "result_table.csv"))
 
   #  Uses hypertune to report metrics for hyperparameter tuning.
@@ -291,6 +336,7 @@ if __name__ == '__main__':
     print("output directory: ", args.job_dir)
     print("Check GPUs", tf.config.list_physical_devices('GPU'))
     if args.test_csv_dataname is None:
-      do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_length)
+      do_one_time_cv_experiment(args, num_students, num_skills,
+                                max_sequence_length)
     else:
       do_normal_experiment(args, num_students, num_skills, max_sequence_length)
