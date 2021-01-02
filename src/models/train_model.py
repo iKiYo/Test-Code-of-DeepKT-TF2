@@ -4,13 +4,6 @@ from datetime import datetime
 import tensorflow as tf
 from tensorflow import keras
 
-import hypertune
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import models.deepkt_tf2
-from data.tf_data_preprocessor import prepare_batched_tf_data
-from data.preprocessor import preprocess_csv
-
 
 def train_model(outfile_path, model, train_dataset, val_dataset, hparams, 
                 num_students, num_skills, max_sequence_length, num_batches,
