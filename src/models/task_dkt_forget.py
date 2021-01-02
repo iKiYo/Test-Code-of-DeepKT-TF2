@@ -174,7 +174,7 @@ def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_lengt
 
 
     # build model
-    model = models.deepkt_forget_tf2.DKTModel(num_students, num_skills,
+    model = models.deepkt_forget_tf2.DKTforgetModel(num_students, num_skills,
                                        max_sequence_length,
                                        args.embed_dim, args.hidden_units,
                                        args.dropout_rate)
@@ -272,7 +272,7 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
   print(F"num_batches for training : {num_batches}")
 
   # build model
-  model = models.deepkt_forget_tf2.DKTModel(num_students, num_skills, max_sequence_length,
+  model = models.deepkt_forget_tf2.DKTforgetModel(num_students, num_skills, max_sequence_length,
                             args.embed_dim, args.hidden_units, args.dropout_rate)
 
   loss=tf.keras.losses.BinaryCrossentropy(
