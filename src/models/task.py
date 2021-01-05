@@ -331,8 +331,8 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
 
 if __name__ == '__main__':
     args = get_args()
-    if args.fulldata_stats_json_name is not None:
-        num_students, num_skills, max_sequence_length = get_full_data_stats(args)
+    # if args.fulldata_stats_json_name is not None:
+    #     num_students, num_skills, max_sequence_length = get_full_data_stats(args)
     print("output directory: ", args.job_dir)
     print("Check GPUs", tf.config.list_physical_devices('GPU'))
     if args.test_csv_dataname is None:
