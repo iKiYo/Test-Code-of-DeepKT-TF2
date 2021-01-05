@@ -34,7 +34,7 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
   num_skills = df['skill_id'].nunique()
   max_sequence_length=  df['user_id'].value_counts().max()
   print(F"number of students:{num_students}  number of skills:{num_skills}"
-        "max attempt :{max_sequence_length}")
+        F" max attempt :{max_sequence_length}")
 
   seq = df.groupby('user_id').apply(
       lambda r: (
