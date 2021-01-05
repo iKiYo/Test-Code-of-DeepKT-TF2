@@ -69,7 +69,6 @@ def get_args():
         '--fulldata_stats_json_name',
         default="assist12_8cols_log2_noNaNskill.json",
         type=str,
-        required=True,
         help='json file of Full data statistic, default=None')
     parser.add_argument(
         '--train_csv_dataname',
