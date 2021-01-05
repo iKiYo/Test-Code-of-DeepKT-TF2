@@ -46,7 +46,7 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
 
   assert num_students, len(seq)
   
-  return seq
+  return seq, num_students, num_skills, max_sequence_length
   
 
 def prepare_cv_id_array(data_folder_path, train_csv_dataname, num_fold):
