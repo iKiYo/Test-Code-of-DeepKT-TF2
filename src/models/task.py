@@ -67,7 +67,7 @@ def get_args():
         help='file name of Full dataset, default=None')
     parser.add_argument(
         '--fulldata_stats_json_name',
-        default="assist12_8cols_log2_noNaNskill.json",
+        default=None,
         type=str,
         help='json file of Full data statistic, default=None')
     parser.add_argument(
@@ -331,7 +331,8 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
 
 if __name__ == '__main__':
     args = get_args()
-    num_students, num_skills, max_sequence_length = get_full_data_stats(args)
+    if args.fulldata_stats_json_name is not None:
+        num_students, num_skills, max_sequence_length = get_full_data_stats(args)
     print("output directory: ", args.job_dir)
     print("Check GPUs", tf.config.list_physical_devices('GPU'))
     if args.test_csv_dataname is None:
