@@ -8,10 +8,10 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from datetime import timedelta
 import models.deepkt_accum
 from .train_model import train_model
-from data.tf_data_preprocessor import make_dkt_accum_seq,
-prepare_batched_tf_data_accum, get_kfold_id_generator
+from data.tempo_tf_data_preprocessor import make_dkt_accum_seq, prepare_batched_tf_data_accum, get_kfold_id_generator
 
 
 def get_args():
@@ -161,12 +161,12 @@ def do_one_time_cv_experiment(args):
     train_seq, val_seq = all_train_seq.iloc[train_index], all_train_seq.iloc[val_index]
 
     # prepare batch (padding, one_hot)
-    train_tf_data = prepare_batch_tf_data_accum(train_seq,
+    train_tf_data = prepare_batched_tf_data_accum(train_seq,
                                             args.batch_size,
                                             num_skills,
                                             max_sequence_length
     )
-    val_tf_data = prepare_batch_tf_data_accum(val_seq,
+    val_tf_data = prepare_batched_tf_data_accum(val_seq,
                                           args.batch_size,
                                           num_skills,
                                           max_sequence_length
@@ -175,11 +175,18 @@ def do_one_time_cv_experiment(args):
     print(F"num_batches for training : {num_batches}")
 
 
+    # make init state tensor for tempo RNN
+    ten_years_ago = timedelta(days=3650).total_seconds()
+    # init_tempo_tensor = tf.fill([batch_size,num_skills], np.log2(ten_years_ago+1))
+    init_delta_tensor = tf.fill([args.batch_size,num_skills], ten_years_ago)
+    init_tempo_tensor = init_delta_tensor
+
     # build model
     model = models.deepkt_accum.DKTtempoModel_2RNN(num_students, num_skills,
-                                       max_sequence_length,
+                                       max_sequence_length, init_tempo_tensor,
                                        args.embed_dim, args.hidden_units,
-                                       args.dropout_rate)
+                                       args.dropout_rate,
+                                       )
     
     # LR test setting
     learning_rate = args.learning_rate
@@ -261,12 +268,12 @@ def do_normal_experiment(args):
   val_seq = make_dkt_accum_seq(args.data_folder_path, args.test_csv_dataname)
 
   # prepare batch (padding, one_hot)
-  train_tf_data = prepare_batch_tf_data_accum(train_seq,
+  train_tf_data = prepare_batched_tf_data_accum(train_seq,
                                           args.batch_size,
                                           num_skills,
                                         max_sequence_length
   )
-  val_tf_data = prepare_batch_tf_data_accum(val_seq,
+  val_tf_data = prepare_batched_tf_data_accum(val_seq,
                                         args.batch_size,
                                         num_skills,
                                         max_sequence_length
@@ -275,7 +282,7 @@ def do_normal_experiment(args):
   print(F"num_batches for training : {num_batches}")
 
   # build model
-  model = models.deepkt_accum.DKTtempoModel_2RNN(num_students, num_skills, max_sequence_length,
+  model = models.deepkt_accum.DKTtempoModel_2RNN(num_students, num_skills, max_sequence_length, init_tempo_tensor,
                             args.embed_dim, args.hidden_units, args.dropout_rate)
 
   loss=tf.keras.losses.BinaryCrossentropy(

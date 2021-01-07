@@ -1,4 +1,3 @@
-from datetime import timedelta
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -47,7 +46,7 @@ class DKTtempoModel_2RNN(tf.keras.Model):
 
 
   def __init__(self, num_students, num_skills, max_sequence_length, init_tempo_tensor,
-                            embed_dim=100, hidden_units=100, dropout_rate=0.2,
+                            embed_dim=100, hidden_units=100, dropout_rate=0.2
                             ):  
 
     x = tf.keras.Input(shape=(None, num_skills*2), name='x')
@@ -60,11 +59,6 @@ class DKTtempoModel_2RNN(tf.keras.Model):
     count_cell = CountStateRNNCell(num_skills*2)
     rnn_count = layers.RNN(count_cell, return_sequences=True)
 
-    # make init state tensor for tempo RNN
-    ten_years_ago = timedelta(days=3650).total_seconds()
-    # init_tempo_tensor = tf.fill([batch_size,num_skills], np.log2(ten_years_ago+1))
-    init_delta_tensor = tf.fill([batch_size,num_skills], ten_years_ago)
-    init_tempo_tensor = init_delta_tensor
 
 
     forget_dense_1 =  layers.TimeDistributed(
