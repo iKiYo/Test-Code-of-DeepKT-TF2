@@ -54,7 +54,8 @@ def make_sequence_data(data_folder_path, processed_csv_dataname):
   )
   assert num_students, len(seq)
 
-  return seq
+  return seq, num_students, num_skills, max_sequence_length
+
 
 
 def make_dkt_forget_2_seq(data_folder_path, processed_csv_dataname):
@@ -76,7 +77,7 @@ def make_dkt_forget_2_seq(data_folder_path, processed_csv_dataname):
       )
   )
   assert num_students, len(seq)
-  return seq
+  return seq, num_students, num_skills, max_sequence_length
 
 
 def make_dkt_accum_seq(data_folder_path, processed_csv_dataname):
@@ -102,7 +103,7 @@ def make_dkt_accum_seq(data_folder_path, processed_csv_dataname):
   )
 
   assert num_students, len(seq)
-  return seq
+  return seq, num_students, num_skills, max_sequence_length
 
 
 
