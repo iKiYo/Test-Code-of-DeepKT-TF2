@@ -79,6 +79,33 @@ def make_dkt_forget_2_seq(data_folder_path, processed_csv_dataname):
   return seq
 
 
+def make_dkt_accum_seq(data_folder_path, processed_csv_dataname):
+
+  df = pd.read_csv(os.path.join(data_folder_path, processed_csv_dataname))
+
+    # Get N, M, T
+  num_students = df['user_id'].nunique()
+  num_skills = df['skill_id'].nunique()
+  max_sequence_length=  df['user_id'].value_counts().max()
+  print(F"number of students:{num_students}  number of skills:{num_skills}  max attempt :{max_sequence_length}")
+
+  seq = df.groupby('user_id').apply(
+      lambda r: (
+          r['x'].values[:-1], 
+
+          r['skill_id'].values[:-1], # current time step
+          r['seq_delta_t'].values[1:], # current time step
+
+          r['skill_id'].values[1:], # q
+          r['correct'].values[1:], # a
+      )
+  )
+
+  assert num_students, len(seq)
+  return seq
+
+
+
 def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_sequence_length):
 
   # Transform into tf.data format
@@ -211,6 +238,174 @@ def prepare_batched_tf_data_2(preprocessed_csv_seq, batch_size, num_skills, max_
               #  "skill" : skill
                 },
               { "outputs" : a}
+          )
+  )
+  return dict_dataset
+
+
+
+def prepare_batched_tf_data_accum(preprocessed_csv_seq, batch_size, num_skills, max_sequence_length):
+ 
+  seq = preprocessed_csv_seq 
+
+  # Transform into tf.data format
+  dataset = tf.data.Dataset.from_generator(
+      generator=lambda: seq,
+      output_types=(
+                    tf.int32, # x
+                    tf.int32, # skill current for tempo
+                    tf.float32, # delta current
+                    tf.int32, # q target skill
+                    tf.int32) # a response
+  )
+
+  # One hot enconding
+  # Encode binary sign of attmpts(from M to 2M)
+  transformed_dataset  = dataset.map(
+      lambda feat, skill, delta, q, label: (
+          tf.one_hot(feat, depth=num_skills*2), # x
+          tf.one_hot(skill, depth=num_skills, on_value=0.0, off_value=1.0, axis=-1), # skill negative for tempo
+          tf.repeat(tf.expand_dims(delta, axis=1), num_skills, axis=1),#), # current sequence_delta           
+          tf.one_hot(q, depth=num_skills, axis=-1), # q 
+          tf.expand_dims(label, -1) # a 
+      )
+  )
+
+  # transformed_dataset  = transformed_dataset.map(
+  #   # make mask for metrics
+  #   lambda x, neg_skill, delta, q, a: (
+  #     x,
+  #     print(tf.shape(x)),
+  #     tf.matmul(tf.transpose(tf.linalg.band_part(tf.ones((tf.shape(x)[-1], tf.shape(x)[-1]), 0, -1)), x)), # count 
+  #     # neg_skill,
+  #     # delta,
+  #     # q,
+  #     # a,
+  #     )
+  # )
+
+
+
+  # Padding for LSTM
+  # FIX: padding value should be Args and default -1
+  padded_dataset = transformed_dataset.padded_batch(
+          batch_size=batch_size,
+          padding_values=(.0, .0, .0, .0, -1),
+          # padding_values=(.0, .0, .0, .0, .0, -1),
+          padded_shapes=(
+                          [None, 2*num_skills],  # x          
+                          # [None, 2*num_skills],  # count          
+                          [None, num_skills], # negative skill for tempo
+                          [None, num_skills], # delta
+                          [None, num_skills], # q (skill of next step attempt)
+                          [None, 1], # a
+                          ),
+                          drop_remainder=True
+  )
+
+    # make mask for metrics
+  padded_dataset  = padded_dataset.map(
+    lambda x, neg_skill, delta, q, a: (
+      x,
+    # lambda x, count, neg_skill, delta, q, a: (
+    #   x,
+    #   count,
+      neg_skill,
+      delta,
+      q,
+      a,
+      tf.cast(tf.math.logical_not(tf.math.equal(a, -1)),
+              tf.float32) # mask for label
+      )
+  )
+
+
+  # Dict format dataset to feed built-in function such as model.fit
+  dict_dataset = padded_dataset.map(
+          lambda x, neg_skill, delta, q, a, mask : (
+              {"x": x,
+              "q" : q,
+          # lambda x, neg_skill, delta, q, a, mask : (
+          #     {"x": x,
+          #     "q" : q,
+          #      "count" : count,
+              "neg_skill": neg_skill,
+              "delta" : delta,
+                },
+              { "outputs" : a},
+              mask
+          )
+  )
+  return dict_dataset  
+
+
+def prepare_batched_tf_data_2(preprocessed_csv_seq, batch_size, num_skills, max_sequence_length):
+ 
+  seq = preprocessed_csv_seq 
+
+  # Transform into tf.data format
+  dataset = tf.data.Dataset.from_generator(
+      generator=lambda: seq,
+      output_types=(
+                    tf.int32, # x
+                    tf.int32, # skill current for tempo
+                    tf.float32, # delta current
+                    tf.int32, # q target skill
+                    tf.int32) # a response
+  )
+
+  # One hot enconding
+  # Encode binary sign of attmpts(from M to 2M)
+  transformed_dataset  = dataset.map(
+      lambda feat, skill, delta, q, label: (
+          tf.one_hot(feat, depth=num_skills*2), # x
+          tf.one_hot(skill, depth=num_skills, on_value=0.0, off_value=1.0, axis=-1), # skill negative for tempo
+          tf.repeat(tf.expand_dims(delta, axis=1), num_skills, axis=1),#), # current sequence_delta           
+          tf.one_hot(q, depth=num_skills, axis=-1), # q 
+          tf.expand_dims(label, -1) # a 
+      )
+  )
+
+
+  # Padding for LSTM
+  # FIX: padding value should be Args and default -1
+  padded_dataset = transformed_dataset.padded_batch(
+          batch_size=batch_size,
+          padding_values=(.0, .0, .0, .0, -1),
+          padded_shapes=(
+                          [None, 2*num_skills],  # x          
+                          [None, num_skills], # negative skill for tempo
+                          [None, num_skills], # delta
+                          [None, num_skills], # q (skill of next step attempt)
+                          [None, 1], # a
+                          ),
+                          drop_remainder=True
+  )
+
+    # make mask for metrics
+  padded_dataset  = padded_dataset.map(
+    lambda x, neg_skill, delta, q, a: (
+      x,
+      neg_skill,
+      delta,
+      q,
+      a,
+      tf.cast(tf.math.logical_not(tf.math.equal(a, -1)),
+              tf.float32) # mask for label
+      )
+  )
+
+
+  # Dict format dataset to feed built-in function such as model.fit
+  dict_dataset = padded_dataset.map(
+          lambda x, neg_skill, delta, q, a, mask : (
+              {"x": x,
+              "q" : q,
+              "neg_skill": neg_skill,
+              "delta" : delta,
+                },
+              { "outputs" : a},
+              mask
           )
   )
   return dict_dataset  
