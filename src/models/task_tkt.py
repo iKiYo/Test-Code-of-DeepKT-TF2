@@ -32,7 +32,12 @@ def get_args():
         help='number of times to go through the data, default=20')
     parser.add_argument(
         '--batch-size',
-        default=30,
+        default=128,
+        type=int,
+        help='number of records to read during each training step, default=128')
+    parser.add_argument(
+        '--window-size',
+        default=128,
         type=int,
         help='number of records to read during each training step, default=128')
     parser.add_argument(
@@ -41,15 +46,25 @@ def get_args():
         type=float,
         help='learning rate for gradient descent, default=.01')
     parser.add_argument(
-        '--hidden_units',
-        default=100,
+        '--num-layers',
+        default=1,
         type=int,
-        help='number of hidden units in LSTM cell, default=100')
+        help='number of layers its in Transformer, default=1')
     parser.add_argument(
-        '--embed_dim',
-        default=100,
+        '--d-model',
+        default=64,
         type=int,
-        help='dimension of embedding in the first layer, default=100')
+        help='number of embedding dimension')
+    parser.add_argument(
+        '--dff',
+        default=64,
+        type=int,
+        help='number of hidden units FC layer, default=64')
+    parser.add_argument(
+        '--num-heads',
+        default=4,
+        type=int,
+        help='number of head units , default=4')
     parser.add_argument(
         '--dropout_rate',
         default=0.2,
@@ -132,7 +147,7 @@ def get_full_data_stats(args):
 def do_one_time_cv_experiment(args):
   print(args)
   # prepare seq
-  all_train_seq, num_students, num_skills, max_sequence_length, num_batches = make_sequence_data(args.data_folder_path, args.train_csv_dataname)
+  all_train_seq, num_students, num_skills, max_sequence_length, num_batches = make_sequence_data(args.data_folder_path, args.train_csv_dataname, args.window_size)
 
   # Get generator 
   num_fold=args.cv_num_folds
@@ -182,12 +197,12 @@ def do_one_time_cv_experiment(args):
     # binary response classes and start token and padding
 
 
-    # build model
-    model = Transformer(num_layers, d_model, num_heads, dff,
+    # initialize model
+    model = models.deepkt_transformer.Transformer(args.num_layers, args.d_model, args.num_heads, args.dff,
                           input_vocab_size, target_vocab_size,
                           pe_input=max_sequence_length, 
                           pe_target=max_sequence_length,
-                          rate=dropout_rate)
+                          rate=args.dropout_rate)
     
     # LR test setting
     learning_rate = args.learning_rate
@@ -221,6 +236,10 @@ def do_one_time_cv_experiment(args):
     auc.reset_states()
     bce.reset_states()
     model.compile(optimizer, loss, weighted_metrics=[auc, bce])
+
+    # build model
+    # Todo: change 
+    model.evaluate(val_tf_data)
     
     # KEEP: for debug 
     if i ==0:
@@ -231,6 +250,9 @@ def do_one_time_cv_experiment(args):
     #   print(sample[0][i])
     #   print(np.array(sample[0][i]).shape)
       print(model.summary()) 
+
+    print("-- start training --")
+    print(args)
 
     max_score, global_step = train_model(args.job_dir, model,
                                          train_tf_data, val_tf_data, args,
@@ -283,8 +305,11 @@ def do_normal_experiment(args):
   print(F"num_batches for training : {num_batches}")
 
   # build model
-  model = models.deepkt_tf2.DKTModel(num_students, num_skills, max_sequence_length,
-                            args.embed_dim, args.hidden_units, args.dropout_rate)
+  model = models.deepkt_transformer.Transformer(num_layers, d_model, num_heads, dff,
+                          input_vocab_size, target_vocab_size,
+                          pe_input=max_sequence_length, 
+                          pe_target=max_sequence_length,
+                          rate=dropout_rate)
 
   loss=tf.keras.losses.BinaryCrossentropy(
       reduction=tf.keras.losses.Reduction.SUM)

@@ -9,12 +9,12 @@ def train_model(outfile_path, model, train_dataset, val_dataset, hparams,
                 num_students, num_skills, max_sequence_length, num_batches,
                 num_hparam_search):
 
-  # Start trainning
-  print("-- start training --")
-  print("hparams.hidden_units, hparams.dropout_rate, hparams.embed_dim, hparams.learning_rate,hparams.batch_size")
-  print(hparams.hidden_units, hparams.dropout_rate, hparams.embed_dim, hparams.learning_rate,hparams.batch_size)
-  print("num_students, num_skills, max_sequence_length, num_batches")
-  print(num_students, num_skills, max_sequence_length, num_batches)
+  # # Start trainning
+  # print("-- start training --")
+  # print("hparams.hidden_units, hparams.dropout_rate, hparams.embed_dim, hparams.learning_rate,hparams.batch_size")
+  # print(hparams.hidden_units, hparams.dropout_rate, hparams.embed_dim, hparams.learning_rate,hparams.batch_size)
+  # print("num_students, num_skills, max_sequence_length, num_batches")
+  # print(num_students, num_skills, max_sequence_length, num_batches)
 
   # Create a TensorBoard callback
   model_name = model.__class__.__name__
