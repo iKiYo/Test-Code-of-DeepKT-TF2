@@ -102,7 +102,6 @@ def make_dkt_accum_seq(data_folder_path, processed_csv_dataname):
   return seq, num_students, num_skills, max_sequence_length
 
 
-
 def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_sequence_length):
 
   # Transform into tf.data format
