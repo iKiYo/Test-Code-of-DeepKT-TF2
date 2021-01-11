@@ -67,7 +67,7 @@ def get_args():
         help='file name of Full dataset, default=None')
     parser.add_argument(
         '--fulldata_stats_json_name',
-        default="assist12_8cols_log2_noNaNskill.json",
+        default=None,
         type=str,
         help='json file of Full data statistic, default=None')
     parser.add_argument(
