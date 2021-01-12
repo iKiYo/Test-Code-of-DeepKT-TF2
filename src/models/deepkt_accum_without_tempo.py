@@ -62,9 +62,9 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
     # embed_delta=delta_emb(delta)
     # exp_delta= tf.math.exp(-embed_delta)
 
-    x_c_t = c_concat([embed_x, embed_count, exp_delta]) # N+N+1
+    # x_c_t = c_concat([embed_x, embed_count, exp_delta]) # N+N+1
     # x_c_t = c_concat([embed_count, exp_delta]) # N + 1 No x Cout + Delta_t
-    # x_c_t = c_concat([embed_x, embed_count, embed_delta]) # N+N+1
+    x_c_t = c_concat([embed_x, embed_count]) # N+N
 
     tempo_mask = count_mask.compute_mask(x)
     h = lstm(x_c_t, mask=tempo_mask)
