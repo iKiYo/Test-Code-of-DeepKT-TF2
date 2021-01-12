@@ -182,11 +182,12 @@ def do_one_time_cv_experiment(args):
     init_tempo_tensor = init_delta_tensor
 
     # build model
-    model = models.deepkt_accum.DKTAccum_no_tempo_Model(num_students, num_skills,
-                                       max_sequence_length,
-                                       args.embed_dim, args.hidden_units,
-                                       args.dropout_rate,
-                                       )
+    model = models.deepkt_accum_without_tempo.DKTAccum_no_tempo_Model(
+        num_students, num_skills,
+        max_sequence_length,
+        args.embed_dim, args.hidden_units,
+        args.dropout_rate,
+    )
     
     # LR test setting
     learning_rate = args.learning_rate
@@ -282,9 +283,12 @@ def do_normal_experiment(args):
   print(F"num_batches for training : {num_batches}")
 
   # build model
-  model = models.deepkt_accum.DKTAccum_no_tempo_Model(num_students, num_skills, max_sequence_length,
-                                            args.embed_dim, args.hidden_units,
-                                            args.dropout_rate)
+  model = models.deepkt_accum_without_tempo.DKTAccum_no_tempo_Model(
+      num_students, num_skills,
+      max_sequence_length,
+      args.embed_dim, args.hidden_units,
+      args.dropout_rate,
+  )
 
   loss=tf.keras.losses.BinaryCrossentropy(
       reduction=tf.keras.losses.Reduction.SUM)
