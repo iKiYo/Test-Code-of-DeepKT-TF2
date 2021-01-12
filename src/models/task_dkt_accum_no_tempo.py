@@ -9,7 +9,7 @@ import pandas as pd
 import tensorflow as tf
 
 from datetime import timedelta
-import models.deepkt_accum
+import models.deepkt_accum_without_tempo
 from .train_model import train_model
 from data.tempo_tf_data_preprocessor import make_dkt_accum_seq, prepare_batched_tf_data_accum, get_kfold_id_generator
 
