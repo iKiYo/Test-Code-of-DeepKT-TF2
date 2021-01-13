@@ -56,6 +56,7 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
     # count data
     count_t =count_mask(x) # 2M
     count_t = c_count(count_t) # accmulates
+    count_t = tf.math.log1p(count_t)
     embed_count = c_emb(count_t) # 2M to N-1
 
     # forgetting curve
