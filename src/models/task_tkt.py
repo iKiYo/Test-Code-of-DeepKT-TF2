@@ -12,6 +12,37 @@ import models.deepkt_transformer
 from .train_model import train_model
 from data.tkt_tf_data_preprocessor import prepare_batched_tf_data, make_sequence_data, get_kfold_id_generator
 
+
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+  def __init__(self, d_model, warmup_steps=4000):
+    super(CustomSchedule, self).__init__()
+
+    self.d_model = d_model
+    self.d_model = tf.cast(self.d_model, tf.float32)
+
+    self.warmup_steps = warmup_steps
+
+  def __call__(self, step):
+    step = tf.convert_to_tensor(step)
+    d_model = tf.convert_to_tensor(self.d_model)
+    step = tf.cast(step, tf.float32)
+    d_model = tf.cast(d_model, tf.float32) 
+
+    arg1 = tf.math.rsqrt(step)
+    arg2 = step * (self.warmup_steps ** -1.5) 
+
+    return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+
+  def get_config(self):
+    config = {
+    'd_model': self.d_model,
+    'warmup_steps': self.warmup_steps,
+
+     }
+    return config
+
+
+
 def get_args():
     """Argument parser.
 
@@ -45,6 +76,11 @@ def get_args():
         default=.001,
         type=float,
         help='learning rate for gradient descent, default=.01')
+    parser.add_argument(
+        '--warmup-step',
+        default=4000,
+        type=int,
+        help='warmup step for learning rate, default=4000')
     parser.add_argument(
         '--num-layers',
         default=1,
@@ -205,7 +241,11 @@ def do_one_time_cv_experiment(args):
                           rate=args.dropout_rate)
     
     # LR test setting
-    learning_rate = args.learning_rate
+    # learning_rate = args.learning_rate
+    warmup_steps=4000
+    learning_rate = CustomSchedule(args.d_model, warmup_steps)
+    
+
     if args.LR_test != 0.0:
       print(F"lr {args.LR_test}")
       args.num_epochs=1
@@ -258,7 +298,7 @@ def do_one_time_cv_experiment(args):
                                          train_tf_data, val_tf_data, args,
                                          num_students, num_skills,
                                          max_sequence_length,
-                                         num_batches, i)
+                                         num_batches, i, no_lr_decay=True)
     scores.append(max_score)
     steps.append(global_step)
     elapsed_time.append(time.perf_counter() - start)

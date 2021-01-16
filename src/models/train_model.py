@@ -7,7 +7,7 @@ from tensorflow import keras
 
 def train_model(outfile_path, model, train_dataset, val_dataset, hparams, 
                 num_students, num_skills, max_sequence_length, num_batches,
-                num_hparam_search):
+                num_hparam_search, no_lr_decay=False):
 
   # # Start trainning
   # print("-- start training --")
@@ -40,18 +40,27 @@ def train_model(outfile_path, model, train_dataset, val_dataset, hparams,
   #                     epochs=hparams.num_epochs,
   #                     validation_data=val_dataset.take(10),
   #                     callbacks=[tboard_callback, early_stop_callback])
-
-  history = model.fit(train_dataset.prefetch(5),
-                      epochs=hparams.num_epochs,
-                      validation_data=val_dataset.prefetch(5), 
-                      callbacks=[tboard_callback,
-                                 early_stop_callback,
-                                 reduce_lr_plateau_callback]
-  )
+  if no_lr_decay is False:
+    history = model.fit(train_dataset.prefetch(5),
+                        epochs=hparams.num_epochs,
+                        validation_data=val_dataset.prefetch(5), 
+                        callbacks=[tboard_callback,
+                                  early_stop_callback,
+                                  reduce_lr_plateau_callback]
+    )
+    export_path = os.path.join(outfile_path, "keras_export")
+    model.save(export_path)
+    print('Model exported to: {}'.format(export_path))
+  else:
+    history = model.fit(train_dataset.prefetch(5),
+                        epochs=hparams.num_epochs,
+                        validation_data=val_dataset.prefetch(5), 
+                        callbacks=[tboard_callback,
+                                  early_stop_callback]
+    )
+    export_path = os.path.join(outfile_path, "keras_export")
+    model.save_weights(export_path)
+    print('Model exported to: {}'.format(export_path))
   print("-- finished training --")
-
-  export_path = os.path.join(outfile_path, "keras_export")
-  model.save(export_path)
-  print('Model exported to: {}'.format(export_path))
 
   return max(history.history['val_auc']),  len(history.history['val_auc'])
