@@ -183,7 +183,7 @@ def get_full_data_stats(args):
 def do_one_time_cv_experiment(args):
   print(args)
   # prepare seq
-  all_train_seq, num_students, num_skills, max_sequence_length, num_batches = make_sequence_data(args.data_folder_path, args.train_csv_dataname, args.window_size)
+  all_train_seq, num_students, num_exercises, num_skills, max_sequence_length, num_batches = make_sequence_data(args.data_folder_path, args.train_csv_dataname, args.window_size)
 
   # Get generator 
   num_fold=args.cv_num_folds
@@ -228,9 +228,9 @@ def do_one_time_cv_experiment(args):
     # input_vocab_size = 2*num_skills + 1 
     # target_vocab_size = num_skills  + 1
     # # SAINT version
-    input_vocab_size = num_skills + 1 
-    target_vocab_size = 2 + 1 + 1
-    # binary response classes and start token and padding
+    input_vocab_size = num_exercises + 1 
+    target_vocab_size = 2 + 1 + 1  # binary response classes and start token and padding
+    input_skill_size = num_skills + 1
 
 
     # initialize model
@@ -238,11 +238,12 @@ def do_one_time_cv_experiment(args):
                           input_vocab_size, target_vocab_size,
                           pe_input=max_sequence_length, 
                           pe_target=max_sequence_length,
-                          rate=args.dropout_rate)
-    
+                           # rate=args.dropout_rate)
+                          skill_input_size=input_skill_size, rate=args.dropout_rate) 
+                          
     # LR test setting
     # learning_rate = args.learning_rate
-    warmup_steps=4000
+    warmup_steps=args.warmup_step
     learning_rate = CustomSchedule(args.d_model, warmup_steps)
     
 
@@ -272,7 +273,8 @@ def do_one_time_cv_experiment(args):
 
     # configure model
     # set Reduction.SUM for distributed traning
-    optimizer=tf.optimizers.Adam(learning_rate=learning_rate)
+    optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, 
+                                     epsilon=1e-9)
     auc.reset_states()
     bce.reset_states()
     model.compile(optimizer, loss, weighted_metrics=[auc, bce])

@@ -30,13 +30,16 @@ def make_sequence_data(data_folder_path, processed_csv_dataname, window_size=Non
 
   # Get N, M, T
   num_students = df['user_id'].nunique()
+  num_ex = df['problem_id'].nunique()
   num_skills = df['skill_id'].nunique()
   max_sequence_length=  df['user_id'].value_counts().max()
   print(F"number of students:{num_students}  number of skills:{num_skills}  max attempt :{max_sequence_length}")
+  print(F"number of exercises:{num_ex}")
 
   if window_size is None:
       seq = df.groupby('user_id').apply(
       lambda r: (
+          r['problem_id'].values+1, # 1...T
           r['skill_id'].values+1, # 1...T
           np.insert(r['correct'].values[:-1]+1, 0, [3]),# st_token + 1...T-1
           r['correct'].values,  # 1...T        
@@ -51,6 +54,7 @@ def make_sequence_data(data_folder_path, processed_csv_dataname, window_size=Non
 
     seq = df.groupby('batch_num').apply(
         lambda r: (
+            r['problem_id'].values+1, # 1...T
             r['skill_id'].values+1, # 1...T
             np.insert(r['correct'].values[:-1]+1, 0, [3]),# st_token + 1...T-1
             r['correct'].values,  # 1...T        
@@ -58,19 +62,21 @@ def make_sequence_data(data_folder_path, processed_csv_dataname, window_size=Non
     )
   assert num_students, len(seq)
 
-  return seq, num_students, num_skills, max_sequence_length, num_batches
-
+  return seq, num_students, num_ex, num_skills, max_sequence_length, num_batches
 
 def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_sequence_length):
   
   # Transform into tf.data format
   dataset = tf.data.Dataset.from_generator(
       generator=lambda: preprocessed_csv_seq,
-      output_types=(tf.int32, tf.int32, tf.int32)
+      # output_types=(tf.int32, tf.int32, tf.int32)
+      output_types=(tf.int32, tf.int32, tf.int32, tf.int32)
   )
 
   transformed_dataset  = dataset.map(
-      lambda skill, shift_label, label: (
+      # lambda skill, shift_label, label: (
+      lambda exercise, skill, shift_label, label: (
+          exercise,
           skill,
           shift_label,
           tf.expand_dims(label, -1) # a 
@@ -80,12 +86,17 @@ def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_se
 
   padded_dataset = transformed_dataset.padded_batch(
           batch_size=batch_size,
-          padding_values=(0, 0, -1),  # padding is 0 but use -1 only for (label) data) 
-          padded_shapes=([None], [None], [None, None]),
+          # padding_values=(0, 0, -1),  # padding is 0 but use -1 only for (label) data) 
+          # padded_shapes=([None], [None], [None, None]),
+          padding_values=(0, 0, 0, -1),  # padding is 0 but use -1 only for (label) data) 
+          padded_shapes=([None], [None], [None], [None, None]),
       )
   
   padded_dataset  = padded_dataset.map(
-      lambda skill, shift_label, label: (
+      # lambda skill, shift_label, label: (
+      #     skill,
+      lambda exercise, skill, shift_label, label: (
+          exercise,
           skill,
           shift_label,
           label,
@@ -95,8 +106,10 @@ def prepare_batched_tf_data(preprocessed_csv_seq, batch_size, num_skills, max_se
 
   # Dict format dataset to feed built-in function such as model.fit
   dict_dataset = padded_dataset.map(
-          lambda skill, shift_label, label, mask : (
-              (skill, shift_label),
+          # lambda skill, shift_label, label, mask : (
+              # (skill, shift_label),
+          lambda exercise, skill, shift_label, label, mask : (
+              (exercise, skill, shift_label),
               label,
               tf.squeeze(mask, -1)
           )
