@@ -37,14 +37,12 @@ class DKTAccumDotConcatModel(tf.keras.Model):
     c_count = layers.RNN(count_cell, return_sequences=True)
 
     # combine x and _c_t
-    c_emb =  layers.TimeDistributed(layers.Dense(embed_dim,
-                    kernel_constraint=tf.keras.constraints.NonNeg()
-                    )
-    )
+    c_emb =  layers.TimeDistributed(layers.Dense(embed_dim))
     c_dot = layers.Multiply()
     c_concat = layers.Concatenate()
 
-    mask = layers.Masking(mask_value=0.0, input_shape=(None, embed_dim + num_skills*2 + 1))
+    mask = layers.Masking(mask_value=0.0,
+                          input_shape=(None, embed_dim + num_skills*2 + 1))
     lstm =  layers.LSTM(hidden_units, return_sequences=True)
     out_dropout =  layers.TimeDistributed(layers.Dropout(dropout_rate))
     out_sigmoid =  layers.TimeDistributed(layers.Dense(num_skills,  activation='sigmoid'))
