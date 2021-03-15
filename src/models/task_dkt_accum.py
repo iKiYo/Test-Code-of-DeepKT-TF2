@@ -9,7 +9,11 @@ import pandas as pd
 import tensorflow as tf
 
 from datetime import timedelta
-import models.deepkt_accum
+from models.deepkt_accum_concat import DKTAccumConcatModel
+from models.deepkt_accum_dot import DKTAccumDotModel
+from models.deepkt_accum_dot_concat import DKTAccumDotConcatModel
+from models.deepkt_accum_biint import DKTAccumBIModel
+# import models.deepkt_accum
 from .train_model import train_model
 from data.tempo_tf_data_preprocessor import make_dkt_accum_seq, prepare_batched_tf_data_accum, get_kfold_id_generator
 
@@ -42,6 +46,11 @@ def get_args():
         default=.001,
         type=float,
         help='learning rate for gradient descent, default=.01')
+    parser.add_argument(
+        '--integration-method',
+        choices=['concat', 'dot', 'dot-concat', 'bi-interaction'],
+        default='bi-interaction',
+        help='integration method for dkt accum default=bi-interaction')
     parser.add_argument(
         '--hidden_units',
         default=100,
@@ -182,12 +191,38 @@ def do_one_time_cv_experiment(args):
     init_tempo_tensor = init_delta_tensor
 
     # build model
-    model = models.deepkt_accum.DKTAccumModel(num_students, num_skills,
-                                       max_sequence_length,
-                                       args.embed_dim, args.hidden_units,
-                                       args.dropout_rate,
-                                       )
-    
+    if args.integration_method == 'concat':
+      model = DKTAccumConcatModel(num_students, num_skills,
+                                        max_sequence_length,
+                                        args.embed_dim, args.hidden_units,
+                                        args.dropout_rate,
+                                        )
+    elif args.integration_method == 'dot':
+      model = DKTAccumDotModel(num_students, num_skills,
+                                        max_sequence_length,
+                                        args.embed_dim, args.hidden_units,
+                                        args.dropout_rate,
+                                        )
+    elif args.integration_method == 'dot-concat':
+      model = DKTAccumDotConcatModel(num_students, num_skills,
+                                        max_sequence_length,
+                                        args.embed_dim, args.hidden_units,
+                                        args.dropout_rate,
+                                        )
+    elif args.integration_method == 'bi-interaction':
+      model = DKTAccumBIModel(num_students, num_skills,
+                                        max_sequence_length,
+                                        args.embed_dim, args.hidden_units,
+                                        args.dropout_rate,
+                                        )
+    else :
+      model = models.deepkt_accum.DKTAccumModel(num_students, num_skills,
+                                        max_sequence_length,
+                                        args.embed_dim, args.hidden_units,
+                                        args.dropout_rate,
+                                        )
+
+
     # LR test setting
     learning_rate = args.learning_rate
     if args.LR_test != 0.0:
