@@ -36,6 +36,7 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
                                                  kernel_constraint=tf.keras.constraints.NonNeg(),
                                                  bias_constraint=tf.keras.constraints.NonNeg(),
     )
+    )
 
     # combine x and _c_t
     c_dot = layers.Multiply()
