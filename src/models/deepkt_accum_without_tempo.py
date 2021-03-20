@@ -83,10 +83,10 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
 
     # learning curve 
     # logarithm
-    lr_count = tf.math.log1p(binary_count)
+    # lr_count = tf.math.log1p(binary_count)
     # exponential
-    # embed_count = c_emb(binary_count) # 2M to N-1
-    # lr_count= tf.ones(shape=(tf.shape(embed_count))) - tf.math.exp(-embed_count)
+    embed_count = c_emb(binary_count) # 2M to N-1
+    lr_count= tf.ones(shape=(tf.shape(embed_count))) - tf.math.exp(-embed_count)
 
 
 
