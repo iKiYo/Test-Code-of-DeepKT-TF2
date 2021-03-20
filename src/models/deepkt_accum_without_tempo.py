@@ -32,7 +32,10 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
     count_mask = layers.Masking(mask_value=0, input_shape=(None, 2*num_skills))
     count_cell = CountStateRNNCell(num_skills*2)
     c_count = layers.RNN(count_cell, return_sequences=True)
-    c_emb =  layers.TimeDistributed(layers.Dense(2))
+    c_emb =  layers.TimeDistributed(layers.Dense(2,
+                                                 kernel_constraint=tf.keras.constraints.NonNeg(),
+                                                 bias_constraint=tf.keras.constraints.NonNeg(),
+    )
 
     # combine x and _c_t
     c_dot = layers.Multiply()
