@@ -32,15 +32,18 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
     count_mask = layers.Masking(mask_value=0, input_shape=(None, 2*num_skills))
     count_cell = CountStateRNNCell(num_skills*2)
     c_count = layers.RNN(count_cell, return_sequences=True)
-    c_emb =  layers.TimeDistributed(layers.Dense(2,
-                                                 kernel_constraint=tf.keras.constraints.NonNeg(),
-                                                 kernel_initializer=tf.keras.initializers.RandomUniform(
-    minval=0.05, maxval=1-0.05),
-                                                 bias_constraint=tf.keras.constraints.NonNeg(),
-                                                 bias_initializer =tf.keras.initializers.RandomUniform(
-    minval=0.05, maxval=1-0.05),
-                                                  )
-    )
+    # c_emb =  layers.TimeDistributed(layers.Dense(2,
+    #                                              activation='relu',
+    # )
+    # )
+    # #                                              kernel_constraint=tf.keras.constraints.NonNeg(),
+    #                                              kernel_initializer=tf.keras.initializers.RandomUniform(
+    # minval=0.05, maxval=2-0.05),
+    #                                              bias_constraint=tf.keras.constraints.NonNeg(),
+    #                                              bias_initializer =tf.keras.initializers.RandomUniform(
+    # minval=0.05, maxval=2-0.05),
+    #                                               )
+    # )
 
     # combine x and _c_t
     c_dot = layers.Multiply()
@@ -83,10 +86,10 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
 
     # learning curve 
     # logarithm
-    # lr_count = tf.math.log1p(binary_count)
+    lr_count = tf.math.log1p(binary_count)
     # exponential
-    embed_count = c_emb(binary_count) # 2M to N-1
-    lr_count= tf.ones(shape=(tf.shape(embed_count))) - tf.math.exp(-embed_count)
+    # embed_count = c_emb(binary_count) # 2M to N-1
+    # lr_count= tf.ones(shape=(tf.shape(embed_count))) - tf.math.exp(-embed_count)
 
 
 
