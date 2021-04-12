@@ -16,11 +16,17 @@ class CountStateRNNCell(layers.Layer):
 
     return output, [output]
 
+  def get_config(self):
+    config = super(CountStateRNNCell, self).get_config()
+    config.update({"units": self.units})
+
+    return config
+
 
 class DKTAccum_no_tempo_Model(tf.keras.Model):
 
 
-  def __init__(self, num_students, num_skills, max_sequence_length, embed_dim=100, hidden_units=100, dropout_rate=0.2):   
+  def __init__(self, num_students, num_skills, max_sequence_length, embed_dim=100, hidden_units=100, dropout_rate=0.2, count_format="binary", count_dim="single"):   
     x = tf.keras.Input(shape=(None, num_skills*2), name='x')
     delta = tf.keras.Input(shape=(None, 1), name='delta')
     q = tf.keras.Input(shape=(None, num_skills), name='q')
@@ -64,29 +70,44 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
     
     # count data
     count_t =count_mask(x) # 2M
+    # count of all skill/exercises
     count_t = c_count(count_t) # accmulates
-    # count_t = tf.math.log1p(count_t)
-    # embed_count = c_emb(count_t) # 2M to N-1
 
-    # pick only target skill id correct/incorrect counts
-    index = tf.argmax(x, axis=-1)
-    index = index//2
+    # pick single target skill id of correct/incorrect counts
+    index = tf.argmax(x, axis=-1) // 2
     one_hot_correct =tf.one_hot(index*2, num_skills*2)
     one_hot_incorrect = tf.one_hot(index*2+1, num_skills*2) 
-    # id_tensor = one_hot_correct + one_hot_incorrect
-    # one hot correct/incorrect tesnor
-    # one_hot_count = c_dot([count_t, id_tensor])
-    
-    # count features total/correct/incorrect tensor
-    correct_count = tf.expand_dims(tf.reduce_sum(one_hot_correct * count_t, axis=-1), axis=-1)
-    incorrect_count = tf.expand_dims(tf.reduce_sum(one_hot_incorrect * count_t, axis=-1), axis=-1)
-    binary_count = c_concat([correct_count, incorrect_count])
-    # total_count = tf.expand_dims(tf.reduce_sum(id_tensor * count_t, axis=-1), axis=-1)
-    # all_count_tensor = tf.concat([correct_count, incorrect_count, total_count], axis=-1)
+    id_tensor = one_hot_correct + one_hot_incorrect
+    if count_dim == "single":
+      # count features total/correct/incorrect tensor
+      correct_count = tf.expand_dims(tf.reduce_sum(one_hot_correct * count_t, axis=-1), axis=-1)
+      incorrect_count = tf.expand_dims(tf.reduce_sum(one_hot_incorrect * count_t, axis=-1), axis=-1)
+      total_count = tf.expand_dims(tf.reduce_sum(id_tensor * count_t, axis=-1), axis=-1)
+      if count_format == "unary": # total number of attempts of target skill
+            count_feat = total_count
+      elif count_format == "bianry": # separated total correct/incorrect attempts of target skill
+        binary_count = c_concat([correct_count, incorrect_count])
+        count_feat = binary_count
+      else:
+        all_count = tf.concat([correct_count, incorrect_count, total_count], axis=-1)
+        count_feat = all_count
+
+    else:
+      # one hot correct/incorrect tesnor
+      if count_format == "unary": # total number of attempts of target skill
+        total_count = tf.expand_dims(tf.reduce_sum(id_tensor * count_t, axis=-1), axis=-1)
+        id_tensor = tf.one_hot(index, num_skills)
+        total_count = tf.tile(total_count, tf.constant([1,1,num_skills], tf.int32))
+        one_hot_all_count = total_count * id_tensor 
+        count_feat = one_hot_all_count
+      else: # binary, separated total correct/incorrect attempts of target skill
+        one_hot_binary_count =id_tensor * count_t
+        count_feat = one_hot_binary_count
+  
 
     # learning curve 
     # logarithm
-    lr_count = tf.math.log1p(binary_count)
+    lr_count = tf.math.log1p(count_feat)
     # exponential
     # embed_count = c_emb(binary_count) # 2M to N-1
     # lr_count= tf.ones(shape=(tf.shape(embed_count))) - tf.math.exp(-embed_count)
