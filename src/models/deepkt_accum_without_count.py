@@ -20,7 +20,7 @@ class CountStateRNNCell(layers.Layer):
 class DKTAccum_no_count_Model(tf.keras.Model):
 
 
-  def __init__(self, num_students, num_skills, max_sequence_length, embed_dim=100, hidden_units=100, dropout_rate=0.2):   
+  def __init__(self, num_students, num_skills, max_sequence_length, embed_dim=100, hidden_units=100, dropout_rate=0.2, delta_format="both", delta_dim="single"):   
     x = tf.keras.Input(shape=(None, num_skills*2), name='x')
     seq_delta = tf.keras.Input(shape=(None, 1), name='seq_delta')
     rep_delta = tf.keras.Input(shape=(None, 1), name='rep_delta')
@@ -64,9 +64,15 @@ class DKTAccum_no_count_Model(tf.keras.Model):
     # embed_delta=delta_emb(delta)
     # exp_delta= tf.math.exp(-embed_delta)
 
-    # x_c_t = c_concat([embed_x, seq_embed_delta]) # N+N
-    x_c_t = c_concat([embed_x, rep_embed_delta]) # N+N
-    # x_c_t = c_concat([embed_x, seq_embed_delta, rep_embed_delta]) # N+N
+    if delta_format == "seq":
+      x_c_t = c_concat([embed_x, seq_embed_delta]) # N+N
+    elif delta_format == "rep":
+      x_c_t = c_concat([embed_x, rep_embed_delta]) # N+N
+    elif delta_format == "both":
+      x_c_t = c_concat([embed_x, seq_embed_delta, rep_embed_delta]) # N+N
+    else:
+      raise ValueError("delta format sould be seq, rep or both")
+
 
     tempo_mask = count_mask.compute_mask(x)
     h = lstm(x_c_t, mask=tempo_mask)

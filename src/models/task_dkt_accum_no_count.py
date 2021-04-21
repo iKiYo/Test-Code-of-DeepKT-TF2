@@ -58,6 +58,16 @@ def get_args():
         type=float,
         help='dropout_rate of outputs from LSTM cell, default=0.2')
     parser.add_argument(
+        '--delta_format',
+        default="both",
+        type=str,
+        help='format of count data, default="both"')
+    parser.add_argument(
+        '--delta_dim',
+        default="single",
+        type=str,
+        help='dimension of count feat, if not single, then one-hot encoded, default="single"')
+    parser.add_argument(
         '--data_folder_path',
         default="../data/processed",
         type=str,
@@ -187,6 +197,8 @@ def do_one_time_cv_experiment(args):
         max_sequence_length,
         args.embed_dim, args.hidden_units,
         args.dropout_rate,
+        args.delta_format,
+        args.delta_dim
     )
     
     # LR test setting
@@ -288,6 +300,8 @@ def do_normal_experiment(args):
       max_sequence_length,
       args.embed_dim, args.hidden_units,
       args.dropout_rate,
+      args.delta_format,
+      args.delta_dim
   )
 
   loss=tf.keras.losses.BinaryCrossentropy(
