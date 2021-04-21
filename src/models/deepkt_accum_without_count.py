@@ -22,7 +22,8 @@ class DKTAccum_no_count_Model(tf.keras.Model):
 
   def __init__(self, num_students, num_skills, max_sequence_length, embed_dim=100, hidden_units=100, dropout_rate=0.2):   
     x = tf.keras.Input(shape=(None, num_skills*2), name='x')
-    delta = tf.keras.Input(shape=(None, 1), name='delta')
+    seq_delta = tf.keras.Input(shape=(None, 1), name='seq_delta')
+    rep_delta = tf.keras.Input(shape=(None, 1), name='rep_delta')
     q = tf.keras.Input(shape=(None, num_skills), name='q')
 
     # normal input x
@@ -53,19 +54,19 @@ class DKTAccum_no_count_Model(tf.keras.Model):
     # normal input x
     embed_x = x_emb(x)
     
-    # count data
-    # count_t =count_mask(x) # 2M
-    # count_t = c_count(count_t) # accmulates
-    # embed_count = c_emb(count_t) # 2M to N-1
 
     # forgetting curve
-    embed_delta=delta_emb(delta)
-    exp_delta= tf.math.exp(-embed_delta)
+    seq_pre_delta = tf.math.log1p(seq_delta)
+    seq_embed_delta=delta_emb(seq_pre_delta)
+    rep_pre_delta = tf.math.log1p(rep_delta)
+    rep_embed_delta=delta_emb(rep_pre_delta)
+  
+    # embed_delta=delta_emb(delta)
+    # exp_delta= tf.math.exp(-embed_delta)
 
-    # x_c_t = c_concat([embed_x, embed_count, exp_delta]) # N+N+1
-    # x_c_t = c_concat([embed_count, exp_delta]) # N + 1 No x Cout + Delta_t
-    # x_c_t = c_concat([embed_x, embed_count]) # N+N
-    x_c_t = c_concat([embed_x, exp_delta]) # N+N
+    # x_c_t = c_concat([embed_x, seq_embed_delta]) # N+N
+    x_c_t = c_concat([embed_x, rep_embed_delta]) # N+N
+    # x_c_t = c_concat([embed_x, seq_embed_delta, rep_embed_delta]) # N+N
 
     tempo_mask = count_mask.compute_mask(x)
     h = lstm(x_c_t, mask=tempo_mask)
@@ -75,4 +76,4 @@ class DKTAccum_no_count_Model(tf.keras.Model):
     y_pred = dot([y_pred, q])
     outputs = reduce_sum(y_pred)
 
-    super().__init__(inputs=[x, delta, q], outputs=outputs, name="DKTAccum_no_count_Model")
+    super().__init__(inputs=[x, seq_delta, rep_delta, q], outputs=outputs, name="DKTAccum_no_count_Model")

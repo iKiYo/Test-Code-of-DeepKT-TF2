@@ -93,7 +93,30 @@ def make_dkt_accum_seq(data_folder_path, processed_csv_dataname):
   seq = df.groupby('user_id').apply(
       lambda r: (
           r['x'].values[:-1], # x
-          r['seq_delta_t'].values[1:], # delta_t until next 
+          r['seq_delta_t'].values[1:], # seq_delta_t until next 
+          r['skill_id'].values[1:], # q_t
+          r['correct'].values[1:], # a_t
+      )
+  )
+  assert num_students, len(seq)
+  return seq, num_students, num_skills, max_sequence_length
+
+
+def make_dkt_accum_delta(data_folder_path, processed_csv_dataname):
+
+  df = pd.read_csv(os.path.join(data_folder_path, processed_csv_dataname))
+
+    # Get N, M, T
+  num_students = df['user_id'].nunique()
+  num_skills = df['skill_id'].nunique()
+  max_sequence_length=  df['user_id'].value_counts().max()
+  print(F"number of students:{num_students}  number of skills:{num_skills}  max attempt :{max_sequence_length}")
+
+  seq = df.groupby('user_id').apply(
+      lambda r: (
+          r['x'].values[:-1], # x
+          r['seq_delta_t'].values[1:], # seq_delta_t until next 
+          r['repeated_delta_t'].values[1:], # rep_delta_t until next 
           r['skill_id'].values[1:], # q_t
           r['correct'].values[1:], # a_t
       )
@@ -302,3 +325,68 @@ def prepare_batched_tf_data_accum(preprocessed_csv_seq, batch_size, num_skills, 
   return dict_dataset  
 
 
+def prepare_batched_tf_data_delta(preprocessed_csv_seq, batch_size, num_skills, max_sequence_length):
+  
+  # Transform into tf.data format
+  dataset = tf.data.Dataset.from_generator(
+      generator=lambda: preprocessed_csv_seq,
+      output_types=(
+                    tf.int32, # x
+                    tf.float32, # seq delta current
+                    tf.float32, # rep delta current
+                    tf.int32, # q target skill
+                    tf.int32) # a response
+  )
+
+  # One hot enconding
+  # Encode binary sign of attmpts(from M to 2M)
+  transformed_dataset  = dataset.map(
+      lambda x, seq_delta, rep_delta, q, label: (
+          tf.one_hot(x, depth=num_skills*2), # x
+          tf.expand_dims(seq_delta, -1),  # seq delta
+          tf.expand_dims(rep_delta, -1),  # rep delta
+          tf.one_hot(q, depth=num_skills, axis=-1), # q 
+          tf.expand_dims(label, -1) # a 
+      )
+  )
+
+  # Padding for LSTM
+  # FIX: padding value should be Args and default -1
+  padded_dataset = transformed_dataset.padded_batch(
+          batch_size=batch_size,
+          padding_values=(.0, .0, .0,.0, -1),
+          padded_shapes=(
+                          [None, 2*num_skills],  # x          
+                          [None, 1], # seq delta
+                          [None, 1], # rep delta
+                          [None, num_skills], # q (skill of next step attempt)
+                          [None, 1], # a
+                          ),
+ )
+
+  # make mask for metrics
+  padded_dataset  = padded_dataset.map(
+    lambda x, seq_delta, rep_delta, q, a: (
+      x,
+      seq_delta,
+      rep_delta,
+      q,
+      a,
+      tf.cast(tf.math.logical_not(tf.math.equal(a, -1)),
+              tf.float32) # mask for label
+      )
+  )
+
+  # Dict format dataset to feed built-in function such as model.fit
+  dict_dataset = padded_dataset.map(
+          lambda x, seq_delta, rep_delta, q, a, mask : (
+              {"x": x,
+              "q" : q,
+              "seq_delta" : seq_delta,
+              "rep_delta" : rep_delta,
+                },
+              { "outputs" : a},
+              mask
+          )
+  )
+  return dict_dataset  
