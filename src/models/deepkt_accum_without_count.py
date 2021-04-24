@@ -57,8 +57,11 @@ class DKTAccum_no_count_Model(tf.keras.Model):
 
     # forgetting curve
     seq_pre_delta = tf.math.log1p(seq_delta)
-    seq_embed_delta=delta_emb(seq_pre_delta)
     rep_pre_delta = tf.math.log1p(rep_delta)
+    if delta_dim == "one-hot":
+      seq_embed_delta = seq_pre_delta * x 
+      rep_embed_delta = rep_pre_delta * x
+    seq_embed_delta=delta_emb(seq_pre_delta)
     rep_embed_delta=delta_emb(rep_pre_delta)
   
     # embed_delta=delta_emb(delta)
