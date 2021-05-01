@@ -35,7 +35,20 @@ class DKTAccum_no_count_Model(tf.keras.Model):
     # c_count = layers.RNN(count_cell, return_sequences=True)
     # c_emb =  layers.Dense(embed_dim)
     # time
-    delta_emb = layers.TimeDistributed(layers.Dense(1)) 
+    # delta_emb = layers.TimeDistributed(layers.Dense(1)) 
+    if delta_dim == "single":
+      seq_emb = layers.TimeDistributed(layers.Dense(1)) 
+      rep_emb = layers.TimeDistributed(layers.Dense(1)) 
+    if delta_dim == "one-hot":
+      seq_emb = layers.TimeDistributed(layers.Dense(embed_dim)) 
+      rep_emb = layers.TimeDistributed(layers.Dense(embed_dim)) 
+    if delta_dim == "seq-one-hot":
+      seq_emb = layers.TimeDistributed(layers.Dense(embed_dim)) 
+      rep_emb = layers.TimeDistributed(layers.Dense(1)) 
+    if delta_dim == "rep-one-hot":
+      seq_emb = layers.TimeDistributed(layers.Dense(1)) 
+      rep_emb = layers.TimeDistributed(layers.Dense(embed_dim)) 
+      
 
     # combine x and _c_t
     c_dot = layers.Multiply()
@@ -61,8 +74,13 @@ class DKTAccum_no_count_Model(tf.keras.Model):
     if delta_dim == "one-hot":
       seq_embed_delta = seq_pre_delta * x 
       rep_embed_delta = rep_pre_delta * x
-    seq_embed_delta=delta_emb(seq_pre_delta)
-    rep_embed_delta=delta_emb(rep_pre_delta)
+    if delta_dim == "seq-one-hot":
+      seq_embed_delta = seq_pre_delta * x 
+    if delta_dim == "rep-one-hot":
+      rep_embed_delta = rep_pre_delta * x
+
+    seq_embed_delta=seq_emb(seq_pre_delta)
+    rep_embed_delta=rep_emb(rep_pre_delta)
   
     # embed_delta=delta_emb(delta)
     # exp_delta= tf.math.exp(-embed_delta)
