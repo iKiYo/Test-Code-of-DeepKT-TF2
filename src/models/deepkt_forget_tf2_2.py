@@ -22,7 +22,8 @@ class CountStateRNNCell(layers.Layer):
 class DKTtempoModel_with_x(tf.keras.Model):
 
 
-  def __init__(self, num_students, num_skills, max_sequence_length, embed_dim=100, hidden_units=100, dropout_rate=0.0):   
+  def __init__(self, num_students, num_skills, max_sequence_length, embed_dim=100, hidden_units=100, dropout_rate=0.0):
+    # one-hot encoded version of x
     x = tf.keras.Input(shape=(max_sequence_length, num_skills*2), name='x')
     delta = tf.keras.Input(shape=(max_sequence_length, 1), name='delta')
     q = tf.keras.Input(shape=(max_sequence_length, num_skills), name='q')

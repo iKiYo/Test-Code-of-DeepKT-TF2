@@ -69,13 +69,11 @@ def get_args():
         '--fulldata_stats_json_name',
         default="assist12_8cols_log2_noNaNskill.json",
         type=str,
-        required=True,
         help='json file of Full data statistic, default=None')
     parser.add_argument(
         '--train_csv_dataname',
         default="train_assist12_8cols_log2_noNaNskill.csv",
         type=str,
-        required=True,
         help='file name of Train dataset, default=None')
     parser.add_argument(
         '--test_csv_dataname',
@@ -128,11 +126,12 @@ def get_full_data_stats(args):
   print(F"Full dataset info : number of students:{num_students}  number of skills:{num_skills}  max attempt :{max_sequence_length}")
   return num_students, num_skills, max_sequence_length
 
-
-def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_length):
+def do_one_time_cv_experiment(args):
+# def do_one_time_cv_experiment(args, num_students, num_skills, max_sequence_length):
   print(args)
   # prepare seq
-  all_train_seq = make_sequence_data(args.data_folder_path, args.train_csv_dataname)
+  all_train_seq, num_students, num_skills, max_sequence_length = make_sequence_data(args.data_folder_path, args.full_csv_dataname)
+  # all_train_seq = make_sequence_data(args.data_folder_path, args.train_csv_dataname)
 
   # Get generator 
   num_fold=args.cv_num_folds
@@ -332,11 +331,12 @@ def do_normal_experiment(args, num_students, num_skills, max_sequence_length):
 
 if __name__ == '__main__':
     args = get_args()
-    num_students, num_skills, max_sequence_length = get_full_data_stats(args)
+    # num_students, num_skills, max_sequence_length = get_full_data_stats(args)
     print("output directory: ", args.job_dir)
     print("Check GPUs", tf.config.list_physical_devices('GPU'))
     if args.test_csv_dataname is None:
-      do_one_time_cv_experiment(args, num_students, num_skills,
-                                max_sequence_length)
+      do_one_time_cv_experiment(args)
+      # do_one_time_cv_experiment(args, num_students, num_skills,
+      #                           max_sequence_length)
     else:
       do_normal_experiment(args, num_students, num_skills, max_sequence_length)

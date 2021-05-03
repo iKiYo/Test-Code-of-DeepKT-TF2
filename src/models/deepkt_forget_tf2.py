@@ -6,7 +6,9 @@ from tensorflow.keras import layers
 class DKTforgetModel(tf.keras.Model):
 
 
-  def __init__(self, num_students, num_skills, max_sequence_length, embed_dim=100, hidden_units=100, dropout_rate=0.2):   
+  def __init__(self, num_students, num_skills, max_sequence_length,
+               embed_dim=100, hidden_units=100, dropout_rate=0.2):
+    
     x = tf.keras.Input(shape=(None, ), name='x')
     q = tf.keras.Input(shape=(None, num_skills), name='q')
     c_t = tf.keras.Input(shape=(None, num_skills*3), name='c_t')
