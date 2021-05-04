@@ -38,6 +38,7 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
     count_mask = layers.Masking(mask_value=0, input_shape=(None, 2*num_skills))
     count_cell = CountStateRNNCell(num_skills*2)
     c_count = layers.RNN(count_cell, return_sequences=True)
+    c_emb =  layers.TimeDistributed(layers.Dense(embed_dim))
     # c_emb =  layers.TimeDistributed(layers.Dense(2,
     #                                              activation='relu',
     # )
@@ -73,6 +74,9 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
     # count of all skill/exercises
     count_t = c_count(count_t) # accmulates
 
+    # learning curve 
+    count_t = tf.math.log1p(count_t)
+
     # pick single target skill id of correct/incorrect counts
     index = tf.argmax(x, axis=-1) // 2
     one_hot_correct =tf.one_hot(index*2, num_skills*2)
@@ -101,13 +105,14 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
         one_hot_all_count = total_count * id_tensor 
         count_feat = one_hot_all_count
       else: # binary, separated total correct/incorrect attempts of target skill
-        one_hot_binary_count =id_tensor * count_t
+        one_hot_binary_count = id_tensor * count_t
         count_feat = one_hot_binary_count
-  
 
+      count_feat = c_emb(count_feat)
+  
     # learning curve 
     # logarithm
-    lr_count = tf.math.log1p(count_feat)
+    # lr_count = tf.math.log1p(count_feat)
     # exponential
     # embed_count = c_emb(binary_count) # 2M to N-1
     # lr_count= tf.ones(shape=(tf.shape(embed_count))) - tf.math.exp(-embed_count)
@@ -123,7 +128,8 @@ class DKTAccum_no_tempo_Model(tf.keras.Model):
     # x_c_t = c_concat([embed_x, total_count]) # N+2
     # x_c_t = c_concat([embed_x, all_count_tensor]) # N+3
 
-    x_c_t = c_concat([embed_x, lr_count]) # N+2
+    # x_c_t = c_concat([embed_x, lr_count]) # N+2
+    x_c_t = c_concat([embed_x, count_feat]) # N+2
 
     tempo_mask = count_mask.compute_mask(x)
     h = lstm(x_c_t, mask=tempo_mask)
