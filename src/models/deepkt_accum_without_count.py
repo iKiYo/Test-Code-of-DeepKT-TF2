@@ -26,29 +26,14 @@ class DKTAccum_no_count_Model(tf.keras.Model):
     rep_delta = tf.keras.Input(shape=(None, 1), name='rep_delta')
     q = tf.keras.Input(shape=(None, num_skills), name='q')
 
+    count_mask = layers.Masking(mask_value=0, input_shape=(None, 2*num_skills))
+
     # normal input x
     x_emb = layers.TimeDistributed(layers.Dense(embed_dim))
 
-    # count
-    count_mask = layers.Masking(mask_value=0, input_shape=(None, 2*num_skills))
-    # count_cell = CountStateRNNCell(num_skills*2)
-    # c_count = layers.RNN(count_cell, return_sequences=True)
-    # c_emb =  layers.Dense(embed_dim)
     # time
-    # delta_emb = layers.TimeDistributed(layers.Dense(1)) 
-    if delta_dim == "single":
-      seq_emb = layers.TimeDistributed(layers.Dense(1)) 
-      rep_emb = layers.TimeDistributed(layers.Dense(1)) 
-    if delta_dim == "one-hot":
-      seq_emb = layers.TimeDistributed(layers.Dense(embed_dim)) 
-      rep_emb = layers.TimeDistributed(layers.Dense(embed_dim)) 
-    if delta_dim == "seq-one-hot":
-      seq_emb = layers.TimeDistributed(layers.Dense(embed_dim)) 
-      rep_emb = layers.TimeDistributed(layers.Dense(1)) 
-    if delta_dim == "rep-one-hot":
-      seq_emb = layers.TimeDistributed(layers.Dense(1)) 
-      rep_emb = layers.TimeDistributed(layers.Dense(embed_dim)) 
-      
+    seq_emb = layers.TimeDistributed(layers.Dense(embed_dim)) 
+    rep_emb = layers.TimeDistributed(layers.Dense(embed_dim)) 
 
     # combine x and _c_t
     c_dot = layers.Multiply()
@@ -82,9 +67,6 @@ class DKTAccum_no_count_Model(tf.keras.Model):
     seq_embed_delta=seq_emb(seq_pre_delta)
     rep_embed_delta=rep_emb(rep_pre_delta)
   
-    # embed_delta=delta_emb(delta)
-    # exp_delta= tf.math.exp(-embed_delta)
-
     if delta_format == "seq":
       x_c_t = c_concat([embed_x, seq_embed_delta]) # N+N
     elif delta_format == "rep":
@@ -93,7 +75,6 @@ class DKTAccum_no_count_Model(tf.keras.Model):
       x_c_t = c_concat([embed_x, seq_embed_delta, rep_embed_delta]) # N+N
     else:
       raise ValueError("delta format sould be seq, rep or both")
-
 
     tempo_mask = count_mask.compute_mask(x)
     h = lstm(x_c_t, mask=tempo_mask)
