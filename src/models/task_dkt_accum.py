@@ -13,9 +13,10 @@ from models.deepkt_accum_concat import DKTAccumConcatModel
 from models.deepkt_accum_dot import DKTAccumDotModel
 from models.deepkt_accum_dot_concat import DKTAccumDotConcatModel
 from models.deepkt_accum_biint import DKTAccumBIModel
+from models.deepkt_accum import DKTAccumModel
 # import models.deepkt_accum
 from .train_model import train_model
-from data.tempo_tf_data_preprocessor import make_dkt_accum_seq, prepare_batched_tf_data_accum, get_kfold_id_generator
+from data.tempo_tf_data_preprocessor import make_dkt_accum_seq, make_dkt_accum_delta, prepare_batched_tf_data_accum, prepare_batched_tf_data_delta, get_kfold_id_generator
 
 
 def get_args():
@@ -49,8 +50,8 @@ def get_args():
     parser.add_argument(
         '--integration-method',
         choices=['concat', 'dot', 'dot-concat', 'bi-interaction'],
-        default='bi-interaction',
-        help='integration method for dkt accum default=bi-interaction')
+        default='None',
+        help='integration method for dkt accum default=None')
     parser.add_argument(
         '--hidden_units',
         default=100,
@@ -143,7 +144,8 @@ def get_full_data_stats(args):
 def do_one_time_cv_experiment(args):
   print(args)
   # prepare seq
-  all_train_seq, num_students, num_skills, max_sequence_length = make_dkt_accum_seq(args.data_folder_path, args.train_csv_dataname)
+  # all_train_seq, num_students, num_skills, max_sequence_length = make_dkt_accum_seq(args.data_folder_path, args.train_csv_dataname)
+  all_train_seq, num_students, num_skills, max_sequence_length = make_dkt_accum_delta(args.data_folder_path, args.train_csv_dataname)
 
   # Get generator 
   num_fold=args.cv_num_folds
@@ -170,12 +172,12 @@ def do_one_time_cv_experiment(args):
     train_seq, val_seq = all_train_seq.iloc[train_index], all_train_seq.iloc[val_index]
 
     # prepare batch (padding, one_hot)
-    train_tf_data = prepare_batched_tf_data_accum(train_seq,
+    train_tf_data = prepare_batched_tf_data_delta(train_seq,
                                             args.batch_size,
                                             num_skills,
                                             max_sequence_length
     )
-    val_tf_data = prepare_batched_tf_data_accum(val_seq,
+    val_tf_data = prepare_batched_tf_data_delta(val_seq,
                                           args.batch_size,
                                           num_skills,
                                           max_sequence_length
@@ -216,7 +218,7 @@ def do_one_time_cv_experiment(args):
                                         args.dropout_rate,
                                         )
     else :
-      model = models.deepkt_accum.DKTAccumModel(num_students, num_skills,
+      model = DKTAccumModel(num_students, num_skills,
                                         max_sequence_length,
                                         args.embed_dim, args.hidden_units,
                                         args.dropout_rate,

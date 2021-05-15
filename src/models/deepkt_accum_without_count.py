@@ -72,12 +72,12 @@ class DKTAccum_no_count_Model(tf.keras.Model):
     seq_pre_delta = tf.math.log1p(seq_delta)
     rep_pre_delta = tf.math.log1p(rep_delta)
     if delta_dim == "one-hot":
-      seq_embed_delta = seq_pre_delta * x 
-      rep_embed_delta = rep_pre_delta * x
+      seq_pre_delta = seq_pre_delta * x 
+      rep_pre_delta = rep_pre_delta * x
     if delta_dim == "seq-one-hot":
-      seq_embed_delta = seq_pre_delta * x 
+      seq_pre_delta = seq_pre_delta * x 
     if delta_dim == "rep-one-hot":
-      rep_embed_delta = rep_pre_delta * x
+      rep_pre_delta = rep_pre_delta * x
 
     seq_embed_delta=seq_emb(seq_pre_delta)
     rep_embed_delta=rep_emb(rep_pre_delta)
