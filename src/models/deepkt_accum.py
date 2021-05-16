@@ -80,11 +80,13 @@ class DKTAccumModel(tf.keras.Model):
     one_hot_correct =tf.one_hot(index*2, num_skills*2)
     one_hot_incorrect = tf.one_hot(index*2+1, num_skills*2) 
     id_tensor = one_hot_correct + one_hot_incorrect
+    # count features total/correct/incorrect tensor
+    correct_count = tf.expand_dims(tf.reduce_sum(one_hot_correct * count_t, axis=-1), axis=-1)
+    incorrect_count = tf.expand_dims(tf.reduce_sum(one_hot_incorrect * count_t, axis=-1), axis=-1)
     total_count = tf.expand_dims(tf.reduce_sum(id_tensor * count_t, axis=-1), axis=-1)
-    id_tensor = tf.one_hot(index, num_skills)
-    total_count = tf.tile(total_count, tf.constant([1,1,num_skills], tf.int32))
-    one_hot_all_count = total_count * id_tensor 
-    count_feat = one_hot_all_count
+    all_count = tf.concat([correct_count, incorrect_count, total_count], axis=-1)
+    count_feat = all_count
+
     embed_count = c_emb(count_feat)
 
 
@@ -100,10 +102,10 @@ class DKTAccumModel(tf.keras.Model):
     # *** forgetting curve
     seq_pre_delta = tf.math.log1p(seq_delta)
     rep_pre_delta = tf.math.log1p(rep_delta)
-    seq_embed_delta = seq_pre_delta * x 
-    rep_embed_delta = rep_pre_delta * x
-    seq_embed_delta=seq_emb(seq_embed_delta)
-    rep_embed_delta=rep_emb(rep_embed_delta)
+    # seq_pre_delta = seq_pre_delta * x 
+    # rep_pre_delta = rep_pre_delta * x
+    seq_embed_delta=seq_emb(seq_pre_delta)
+    rep_embed_delta=rep_emb(rep_pre_delta)
 
     # *** preprocess for pure Pareto (log(1+raw t))
     # pre_delta = tf.math.log1p(delta)
